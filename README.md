@@ -8,15 +8,15 @@ Sistem Manajemen Proposal Terintegrasi berbasis Web untuk memudahkan pengelolaan
 ## 🗂️ Struktur Project
 proposal-management/
 ├── client/ # Frontend React App (Tailwind, Context API, Routing)
+|-- logs/ # History 
 └── server/ # Backend Express.js API (Prisma, JWT Auth, Role Middleware)
 
 client/
+|-- node_modules/
 ├── public/
 │   ├── index.html
-│   ├── favicon.ico
-│   ├── manifest.json
 │   └── logo192.png
-
+|
 ├── src/
 │   ├── components/
 │   │   ├── Layout/
@@ -25,123 +25,127 @@ client/
 │   │   │   ├── Footer.js
 │   │   │   ├── Navigation.js
 │   │   │   └── Layout.js
-
+|   |   |
 │   │   ├── Auth/
 │   │   │   ├── LoginForm.js
 │   │   │   ├── RegisterForm.js
 │   │   │   ├── ProtectedRoute.js
 │   │   │   └── RoleBasedRedirect.js
-
+|   |   |
 │   │   ├── Dashboard/
 │   │   │   ├── StatsCard.js
 │   │   │   ├── RecentItems.js
 │   │   │   ├── QuickActions.js
 │   │   │   ├── ProposalStatusCard.js
 │   │   │   └── RecentProposals.js
-
+|   |   |
 │   │   ├── Proposals/
 │   │   │   ├── ProposalList.js
 │   │   │   ├── ProposalForm.js
 │   │   │   ├── ProposalCard.js
 │   │   │   ├── ProposalDetail.js
 │   │   │   └── ProposalStatus.js
-
+|   |   |
 │   │   ├── Reviews/
 │   │   │   ├── ReviewList.js
 │   │   │   ├── ReviewForm.js
+|   |   |   |-- ReviewDetail.js
 │   │   │   └── ReviewCard.js
-
+|   |   |
 │   │   ├── Skema/
 │   │   │   ├── SkemaList.js
 │   │   │   ├── SkemaForm.js
 │   │   │   ├── SkemaCard.js
 │   │   │   └── SkemaDetail.js
-
+|   |   |
 │   │   ├── Users/
 │   │   │   ├── UserList.js
 │   │   │   ├── UserProfile.js
 │   │   │   ├── UserCard.js
 │   │   │   └── UserForm.js
-
-│   │   ├── Files/
+|   |   |
+│   │   ├── Files/(Masih tahap perlu dikembangkan)
 │   │   │   ├── FileUpload.js
 │   │   │   ├── FileManager.js
 │   │   │   ├── DocumentList.js
 │   │   │   └── FileViewer.js
-
+|   |   |
 │   │   ├── Jurusan/
 │   │   │   ├── JurusanList.js
 │   │   │   └── JurusanForm.js
-
+|   |   |
 │   │   ├── Prodi/
 │   │   │   ├── ProdiList.js
 │   │   │   └── ProdiForm.js
-
+|   |   |
 │   │   └── Common/
 │   │       ├── Loading.js
 │   │       ├── Modal.js
 │   │       ├── Table.js
 │   │       ├── Pagination.js
 │   │       ├── SearchBar.js
+|   |       |-- AlertMessage.js
+|   |       |-- ErrorAlert.js
+|   |       |-- LoadingSpinner.js
 │   │       └── StatusBadge.js
-
+|   |
 │   ├── pages/
 │   │   ├── Login.js
 │   │   ├── Register.js
 │   │   ├── Dashboard.js
 │   │   ├── LandingPage.js
-
+|   |   |
 │   │   ├── Dashboard/
 │   │   │   ├── AdminDashboard.js
 │   │   │   ├── DosenDashboard.js
 │   │   │   ├── MahasiswaDashboard.js
 │   │   │   ├── ReviewerDashboard.js
 │   │   │   └── RoleBasedDashboard.js
-
+|   |   |
 │   │   ├── Proposals/
 │   │   │   ├── index.js
 │   │   │   ├── Create.js
 │   │   │   ├── Edit.js
 │   │   │   └── Detail.js
-
+|   |   |
 │   │   ├── Reviews/
 │   │   │   ├── index.js
 │   │   │   ├── Review.js
 │   │   │   └── Detail.js
-
+|   |   |
 │   │   ├── Skema/
 │   │   │   ├── index.js
 │   │   │   ├── Create.js
 │   │   │   ├── Edit.js
 │   │   │   └── Detail.js
-
+|   |   |
 │   │   ├── Users/
 │   │   │   ├── index.js
+|   |   |   |-- Edit.js
 │   │   │   └── Profile.js
-
+|   |   |
 │   │   ├── Jurusan/
 │   │   │   ├── index.js
 │   │   │   ├── Create.js
+|   |   |   |-- Detail.js
 │   │   │   └── Edit.js
-
+|   |   |
 │   │   ├── Prodi/
 │   │   │   ├── index.js
 │   │   │   ├── Create.js
+|   |   |   |-- Detail.js
 │   │   │   └── Edit.js
-
+|   |   |
 │   │   └── NotFound.js
-
+|   | 
 │   ├── context/
 │   │   ├── AuthContext.js
-│   │   └── AppContext.js
-
+│   │   └── ToastContext.js
+|   |
 │   ├── hooks/
 │   │   ├── useAuth.js
-│   │   ├── useApi.js
-│   │   ├── usePagination.js
-│   │   ├── useNotification.js
-│   │   └── useUsers.js
-
+│   │   └── useApi.js
+|   |  
 │   ├── services/
 │   │   ├── api.js
 │   │   ├── authService.js
@@ -150,10 +154,11 @@ client/
 │   │   ├── skemaService.js
 │   │   ├── userService.js
 │   │   ├── dashboardService.js
-│   │   ├── fileService.js
+│   │   ├── fileService.js (masih tahap perlu dikembangkan)
 │   │   ├── jurusanService.js
+|   |   |-- pengumumanService (masih tahap perlu dikembangkan)
 │   │   └── prodiService.js
-
+|   |
 │   ├── utils/
 │   │   ├── constants.js
 │   │   ├── helpers.js
@@ -177,20 +182,21 @@ client/
 server/
 ├── config/
 │   ├── database.js
+|   |-- constants.js
 │   └── validateEnv.js
-
+|  
 ├── controllers/
-│   ├── authController.js
-│   ├── userController.js
-│   ├── proposalController.js
-│   ├── skemaController.js
-│   ├── reviewController.js
-│   ├── dashboardController.js
-│   ├── pengumuman.controller.js
-│   ├── fileController.js
+│   ├── auth.Controller.js
+│   ├── user.Controller.js
+│   ├── proposal.Controller.js
+│   ├── skema.Controller.js
+│   ├── review.Controller.js
+│   ├── dashboard.Controller.js
+│   ├── pengumuman.controller.js (masih dalam Tahap perlu dikembangkan)
+│   ├── file.Controller.js (masih dalam Tahap perlu dikembangkan)
 │   ├── jurusanController.js
 │   └── prodiController.js
-
+|
 ├── routes/
 │   ├── auth.js
 │   ├── users.js
@@ -200,44 +206,45 @@ server/
 │   ├── dashboard.js
 │   ├── files.js
 │   ├── jurusan.js
+|   |-- pengumuman.js
 │   ├── prodi.js
 │   └── index.js
 
 ├── middleware/
 │   ├── auth.js
-│   ├── cors.js
-│   ├── upload.js
+│   ├── cors.js (Fungsi nya belum diterapkan fungsi file)
+│   ├── upload.js (Fungsi nya belum diterapkan fungsi file)
+|   |-- errorHandler.js 
 │   ├── validator.js
 │   ├── logger.js
-│   ├── rateLimiter.js
-│   └── roleMiddleware/
-
+│   ├── rateLimiter.js (Fungsi nya belum diterapkan fungsi file)
+│   └── roleMiddleware.js
+|  
 ├── prisma/
 │   ├── schema.prisma
-│   ├── seed.js
 │   ├── seed-p3m.js
 │   └── migrations/
-
-├── uploads/
+|   
+├── uploads/ (masih perlu Dibuat belum selesai)
 │   ├── documents/
 │   ├── proposals/
 │   ├── reviews/
 │   ├── images/
 │   ├── pengumuman/
 │   └── temp/
-
+|
 ├── utils/
 │   ├── response.js
 │   ├── validation.js
 │   ├── constants.js
 │   ├── helper.js
 │   ├── dateHelper.js
-│   ├── fileUpload.js
-│   └── email.js
-
+│   ├── fileUpload.js (masih perlu di Kembangkan belum selesai)
+│   └── email.js (ini juga fungsinya belum diterapkan)
+|
 ├── logs/
 │   └── app.log
-
+|
 ├── .env
 ├── .gitignore
 ├── package.json
