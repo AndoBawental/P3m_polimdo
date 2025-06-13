@@ -12,42 +12,69 @@ async function main() {
   const mhsPassword = await bcrypt.hash('mhs123', saltRounds);
   const reviewerPassword = await bcrypt.hash('reviewer123', saltRounds);
 
-  // ==================== CREATE JURUSAN & PRODI ====================
-  
-  const jurusanTI = await prisma.jurusan.create({
-    data: {
-      nama: 'Teknik Informatika',
-    },
-  });
+  // ==================== CREATE JURUSAN ====================
+  const jurusanData = [
+    { nama: 'Teknik Sipil' },
+    { nama: 'Teknik Elektro' },
+    { nama: 'Teknik Mesin' },
+    { nama: 'Akuntansi' },
+    { nama: 'Administrasi Bisnis' },
+    { nama: 'Pariwisata' }
+  ];
 
-  const jurusanSI = await prisma.jurusan.create({
-    data: {
-      nama: 'Sistem Informasi',
-    },
-  });
+  const createdJurusan = {};
+  for (const jurusan of jurusanData) {
+    const created = await prisma.jurusan.create({
+      data: jurusan
+    });
+    createdJurusan[jurusan.nama] = created;
+  }
 
-  const prodiTI = await prisma.prodi.create({
-    data: {
-      nama: 'Teknik Informatika',
-      jurusanId: jurusanTI.id,
-    },
-  });
+  // ==================== CREATE PRODI ====================
+  const prodiData = [
+    { nama: 'Teknologi Rekayasa Perawatan dan Restorasi Bangunan Gedung', jurusanId: createdJurusan['Teknik Sipil'].id },
+    { nama: 'Konstruksi Bangunan Gedung', jurusanId: createdJurusan['Teknik Sipil'].id },
+    { nama: 'Teknik Jalan Jembatan', jurusanId: createdJurusan['Teknik Sipil'].id },
+    { nama: 'D3 Teknik Sipil', jurusanId: createdJurusan['Teknik Sipil'].id },
+    
+    { nama: 'Teknik Listrik', jurusanId: createdJurusan['Teknik Elektro'].id },
+    { nama: 'Teknik Informatika', jurusanId: createdJurusan['Teknik Elektro'].id },
+    { nama: 'D3 Teknik Listrik', jurusanId: createdJurusan['Teknik Elektro'].id },
+    { nama: 'D3 Teknik Komputer', jurusanId: createdJurusan['Teknik Elektro'].id },
+    
+    { nama: 'Teknik Mesin Produksi dan Perawatan', jurusanId: createdJurusan['Teknik Mesin'].id },
+    { nama: 'Teknologi Rekayasa Mekatronika', jurusanId: createdJurusan['Teknik Mesin'].id },
+    
+    { nama: 'Akuntansi Keuangan', jurusanId: createdJurusan['Akuntansi'].id },
+    { nama: 'Akuntansi Perpajakan', jurusanId: createdJurusan['Akuntansi'].id },
+    { nama: 'D3 Akuntansi', jurusanId: createdJurusan['Akuntansi'].id },
+    
+    { nama: 'Manajemen Bisnis', jurusanId: createdJurusan['Administrasi Bisnis'].id },
+    { nama: 'D3 Administrasi Bisnis', jurusanId: createdJurusan['Administrasi Bisnis'].id },
+    { nama: 'D3 Manajemen Pemasaran', jurusanId: createdJurusan['Administrasi Bisnis'].id },
+    
+    { nama: 'Perhotelan', jurusanId: createdJurusan['Pariwisata'].id },
+    { nama: 'Manjemen Pariwisata Global', jurusanId: createdJurusan['Pariwisata'].id },
+    { nama: 'D3 Pariwisata', jurusanId: createdJurusan['Pariwisata'].id },
+    { nama: 'D3 Usaha Perjalan Wisata', jurusanId: createdJurusan['Pariwisata'].id },
+    { nama: 'D3 Ekowisata Bawah Laut', jurusanId: createdJurusan['Pariwisata'].id }
+  ];
 
-  const prodiSI = await prisma.prodi.create({
-    data: {
-      nama: 'Sistem Informasi',
-      jurusanId: jurusanSI.id,
-    },
-  });
+  const createdProdi = {};
+  for (const prodi of prodiData) {
+    const created = await prisma.prodi.create({
+      data: prodi
+    });
+    createdProdi[prodi.nama] = created;
+  }
 
   // ==================== CREATE USERS ====================
-  
-  // 1. Admin
+  // 1. Admin (18 digit NIP)
   const admin = await prisma.user.create({
     data: {
-      nip: 'ADM001',
+      nip: 'ADM0000000000000001',
       nama: 'Admin Sistem P3M',
-      email: 'admin@p3m.ac.id',
+      email: 'admin.p3m@gmail.com',
       password: adminPassword,
       role: 'ADMIN',
       no_telp: '081234567890',
@@ -55,48 +82,48 @@ async function main() {
     },
   });
 
-  // 2. Dosen
+  // 2. Dosen (18 digit NIP)
   const dosen1 = await prisma.user.create({
     data: {
-      nip: 'DSN001',
+      nip: 'DSN0000000000000001',
       nama: 'Dr. Andi Wijaya, M.Kom',
-      email: 'andi@p3m.ac.id',
+      email: 'andi.wijaya@gmail.com',
       password: dosenPassword,
       role: 'DOSEN',
       no_telp: '081234567891',
       bidang_keahlian: 'Artificial Intelligence, Machine Learning',
-      jurusanId: jurusanTI.id,
-      prodiId: prodiTI.id,
+      jurusanId: createdJurusan['Teknik Elektro'].id,
+      prodiId: createdProdi['Teknik Informatika'].id,
       status: 'AKTIF',
     },
   });
 
   const dosen2 = await prisma.user.create({
     data: {
-      nip: 'DSN002',
+      nip: 'DSN0000000000000002',
       nama: 'Dr. Sari Melati, M.T',
-      email: 'sari@p3m.ac.id',
+      email: 'sari.melati@gmail.com',
       password: dosenPassword,
       role: 'DOSEN',
       no_telp: '081234567892',
       bidang_keahlian: 'Software Engineering, Database Systems',
-      jurusanId: jurusanSI.id,
-      prodiId: prodiSI.id,
+      jurusanId: createdJurusan['Akuntansi'].id,
+      prodiId: createdProdi['Akuntansi Keuangan'].id,
       status: 'AKTIF',
     },
   });
 
-  // 3. Mahasiswa
+  // 3. Mahasiswa (NIM tidak diubah)
   const mahasiswa1 = await prisma.user.create({
     data: {
       nim: '2021001',
       nama: 'Budi Santoso',
-      email: 'budi@student.ac.id',
+      email: 'budi.santoso@gmail.com',
       password: mhsPassword,
       role: 'MAHASISWA',
       no_telp: '081234567893',
-      jurusanId: jurusanTI.id,
-      prodiId: prodiTI.id,
+      jurusanId: createdJurusan['Teknik Elektro'].id,
+      prodiId: createdProdi['D3 Teknik Komputer'].id,
       status: 'AKTIF',
     },
   });
@@ -105,22 +132,22 @@ async function main() {
     data: {
       nim: '2021002',
       nama: 'Dewi Lestari',
-      email: 'dewi@student.ac.id',
+      email: 'dewi.lestari@gmail.com',
       password: mhsPassword,
       role: 'MAHASISWA',
       no_telp: '081234567894',
-      jurusanId: jurusanSI.id,
-      prodiId: prodiSI.id,
+      jurusanId: createdJurusan['Pariwisata'].id,
+      prodiId: createdProdi['D3 Ekowisata Bawah Laut'].id,
       status: 'AKTIF',
     },
   });
 
-  // 4. Reviewer
+  // 4. Reviewer (18 digit NIP)
   const reviewer1 = await prisma.user.create({
     data: {
-      nip: 'REV001',
+      nip: 'REV0000000000000001',
       nama: 'Prof. Dr. Ahmad Rahman, M.Sc',
-      email: 'ahmad@reviewer.ac.id',
+      email: 'ahmad.rahman@gmail.com',
       password: reviewerPassword,
       role: 'REVIEWER',
       no_telp: '081234567895',
@@ -131,9 +158,9 @@ async function main() {
 
   const reviewer2 = await prisma.user.create({
     data: {
-      nip: 'REV002',
+      nip: 'REV0000000000000002',
       nama: 'Dr. Rina Sari, M.Kom',
-      email: 'rina@reviewer.ac.id',
+      email: 'rina.sari@gmail.com',
       password: reviewerPassword,
       role: 'REVIEWER',
       no_telp: '081234567896',
@@ -143,7 +170,6 @@ async function main() {
   });
 
   // ==================== CREATE SKEMA ====================
-  
   const skemaPenelitian = await prisma.skema.create({
     data: {
       kode: 'PEN-2025-001',
@@ -193,7 +219,6 @@ async function main() {
   });
 
   // ==================== CREATE PROPOSALS ====================
-  
   // Proposal oleh Dosen
   const proposalDosen = await prisma.proposal.create({
     data: {
@@ -241,7 +266,6 @@ async function main() {
   });
 
   // ==================== CREATE PROPOSAL MEMBERS ====================
-  
   // Anggota untuk proposal dosen
   await prisma.proposalMember.create({
     data: {
@@ -269,7 +293,6 @@ async function main() {
   });
 
   // ==================== CREATE REVIEWS ====================
-  
   const review1 = await prisma.review.create({
     data: {
       proposalId: proposalDosen.id,
@@ -293,7 +316,6 @@ async function main() {
   });
 
   // ==================== CREATE PENGUMUMAN ====================
-  
   await prisma.pengumuman.create({
     data: {
       judul: 'Pembukaan Pendaftaran Skema Penelitian 2025',
@@ -313,7 +335,6 @@ async function main() {
   });
 
   // ==================== CREATE DOCUMENTS ====================
-  
   await prisma.document.create({
     data: {
       name: 'Proposal_ML_Tanaman.pdf',

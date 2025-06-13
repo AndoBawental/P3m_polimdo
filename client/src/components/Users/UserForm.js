@@ -1,5 +1,7 @@
 // client/src/components/Users/UserForm.js
 import React, { useState, useEffect } from 'react';
+import jurusanService from '../../services/jurusanService';
+import prodiService from '../../services/prodiService';
 
 const UserForm = ({ user, onSubmit, onCancel, loading = false }) => {
   const [formData, setFormData] = useState({
@@ -16,7 +18,17 @@ const UserForm = ({ user, onSubmit, onCancel, loading = false }) => {
   });
 
   const [errors, setErrors] = useState({});
+  const [jurusanList, setJurusanList] = useState([]);
+  const [prodiList, setProdiList] = useState([]);
+  const [loadingJurusan, setLoadingJurusan] = useState(false);
+  const [loadingProdi, setLoadingProdi] = useState(false);
 
+  // Load jurusan list on component mount
+  useEffect(() => {
+    loadJurusanList();
+  }, []);
+
+  // Load user data when user prop changes
   useEffect(() => {
     if (user) {
       setFormData({
@@ -28,11 +40,68 @@ const UserForm = ({ user, onSubmit, onCancel, loading = false }) => {
         nim: user.nim || '',
         no_telp: user.no_telp || '',
         bidang_keahlian: user.bidang_keahlian || '',
-        jurusanId: user.jurusan?.id || '',
-        prodiId: user.prodi?.id || ''
+        jurusanId: user.jurusan?.id?.toString() || '',
+        prodiId: user.prodi?.id?.toString() || ''
       });
+
+      // Load prodi list if jurusan is selected
+      if (user.jurusan?.id) {
+        loadProdiByJurusan(user.jurusan.id);
+      }
     }
   }, [user]);
+
+  // Load prodi when jurusan changes
+  useEffect(() => {
+    if (formData.jurusanId) {
+      loadProdiByJurusan(formData.jurusanId);
+      // Reset prodi selection when jurusan changes
+      if (formData.prodiId) {
+        setFormData(prev => ({ ...prev, prodiId: '' }));
+      }
+    } else {
+      setProdiList([]);
+      setFormData(prev => ({ ...prev, prodiId: '' }));
+    }
+  }, [formData.jurusanId]);
+
+  const loadJurusanList = async () => {
+    setLoadingJurusan(true);
+    try {
+      const response = await jurusanService.getAllJurusan(true); // Use public access
+      if (response.success) {
+        setJurusanList(response.data || []);
+      } else {
+        console.error('Failed to load jurusan:', response.message);
+        setJurusanList([]);
+      }
+    } catch (error) {
+      console.error('Error loading jurusan:', error);
+      setJurusanList([]);
+    } finally {
+      setLoadingJurusan(false);
+    }
+  };
+
+  const loadProdiByJurusan = async (jurusanId) => {
+    if (!jurusanId) return;
+    
+    setLoadingProdi(true);
+    try {
+      const response = await prodiService.getProdiByJurusan(jurusanId);
+      if (response.success) {
+        setProdiList(response.data || []);
+      } else {
+        console.error('Failed to load prodi:', response.message);
+        setProdiList([]);
+      }
+    } catch (error) {
+      console.error('Error loading prodi:', error);
+      setProdiList([]);
+    } finally {
+      setLoadingProdi(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -51,11 +120,18 @@ const UserForm = ({ user, onSubmit, onCancel, loading = false }) => {
         setFormData(prev => ({ ...prev, nim: '' }));
       }
     }
+
+    // Handle jurusan change - this will trigger useEffect to load prodi
+    if (name === 'jurusanId') {
+      // Clear prodi selection when jurusan changes
+      setFormData(prev => ({ ...prev, [name]: value, prodiId: '' }));
+    }
   };
 
   const validateForm = () => {
     const newErrors = {};
 
+    // Basic validation
     if (!formData.nama.trim()) newErrors.nama = 'Nama wajib diisi';
     if (!formData.email.trim()) newErrors.email = 'Email wajib diisi';
     if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
@@ -261,34 +337,55 @@ const UserForm = ({ user, onSubmit, onCancel, loading = false }) => {
         </div>
       )}
 
-      {/* Jurusan & Prodi IDs - Hidden inputs for now */}
+      {/* Jurusan & Prodi Dropdowns */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            ID Jurusan
+            Jurusan
           </label>
-          <input
-            type="number"
+          <select
             name="jurusanId"
             value={formData.jurusanId}
             onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Masukkan ID jurusan"
-          />
+            disabled={loadingJurusan}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+          >
+            <option value="">
+              {loadingJurusan ? 'Memuat jurusan...' : 'Pilih Jurusan'}
+            </option>
+            {jurusanList.map(jurusan => (
+              <option key={jurusan.id} value={jurusan.id}>
+                {jurusan.nama}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            ID Program Studi
+            Program Studi
           </label>
-          <input
-            type="number"
+          <select
             name="prodiId"
             value={formData.prodiId}
             onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Masukkan ID program studi"
-          />
+            disabled={!formData.jurusanId || loadingProdi}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+          >
+            <option value="">
+              {!formData.jurusanId 
+                ? 'Pilih jurusan terlebih dahulu' 
+                : loadingProdi 
+                  ? 'Memuat program studi...' 
+                  : 'Pilih Program Studi'
+              }
+            </option>
+            {prodiList.map(prodi => (
+              <option key={prodi.id} value={prodi.id}>
+                {prodi.nama}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 

@@ -186,13 +186,6 @@ const MahasiswaDashboard = () => {
       color: 'bg-indigo-600 hover:bg-indigo-700',
       action: 'view-proposals'
     },
-    {
-      title: 'Jelajahi Skema',
-      description: 'Temukan skema penelitian yang tepat',
-      icon: <BookOpenIcon />,
-      color: 'bg-teal-600 hover:bg-teal-700',
-      action: 'view-skema'
-    }
   ];
 
   if (loading) return <LoadingSpinner message="Memuat dashboard..." />;

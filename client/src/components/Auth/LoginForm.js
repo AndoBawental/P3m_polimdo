@@ -1,7 +1,9 @@
+// src/components/Auth/LoginForm.js
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, User, Lock, Mail, ChevronDown } from 'lucide-react';
+import { validateLoginForm, validateLoginCredentials } from '../../utils/validation';
 
 const LoginForm = () => {
   const [formData, setFormData] = useState({
@@ -12,8 +14,10 @@ const LoginForm = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
 
-  const { login, loading, error, setError } = useAuth();
+  const { login, logout, loading, error, setError } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -23,37 +27,85 @@ const LoginForm = () => {
     }
   }, []);
 
+  const validateEmailFormat = (email) => {
+    if (!email || email.trim() === '') return '';
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      return 'Format email tidak valid. Contoh: user@example.com';
+    }
+    return '';
+  };
+
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: name === 'email' ? value.trim().toLowerCase() : value
     }));
+    
     if (error) setError(null);
+    
+    if (fieldErrors[name]) {
+      setFieldErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
+    
+    if (name === 'email') {
+      const trimmedEmail = value.trim().toLowerCase();
+      const emailValidationError = validateEmailFormat(trimmedEmail);
+      setEmailError(emailValidationError);
+    }
   };
 
   const handleRoleSelect = (selectedRole) => {
     setFormData(prev => ({ ...prev, role: selectedRole }));
     localStorage.setItem('selectedRole', selectedRole);
     setRoleDropdownOpen(false);
+    
+    if (fieldErrors.role) {
+      setFieldErrors(prev => ({
+        ...prev,
+        role: ''
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { email, password, role } = formData;
-
-    if (!email || !password || !role) {
-      setError('Email, password, dan role wajib diisi');
+    
+    const validation = validateLoginForm(formData);
+    
+    if (!validation.isValid) {
+      setFieldErrors(validation.errors);
+      setError('Mohon perbaiki kesalahan pada form');
       return;
     }
 
+    setFieldErrors({});
+    setEmailError('');
     setIsSubmitting(true);
+
     try {
       const result = await login(formData);
-      if (result.success) {
+      
+      if (result.success && result.user) {
+        const credentialValidation = validateLoginCredentials(formData, result.user);
+
+        if (!credentialValidation.isValid) {
+          setFieldErrors(credentialValidation.errors);
+          setError('Role yang dipilih tidak sesuai dengan akun Anda');
+          logout();
+          setIsSubmitting(false);
+          return;
+        }
+
         navigate('/dashboard', { replace: true });
       } else {
-        console.error('Login failed:', result.message);
+        setError(result.message || 'Email atau password salah');
       }
     } catch (err) {
       setError(err.message || 'Terjadi kesalahan saat login');
@@ -67,7 +119,18 @@ const LoginForm = () => {
       case 'DOSEN': return 'Dosen';
       case 'MAHASISWA': return 'Mahasiswa';
       case 'REVIEWER': return 'Reviewer';
+      case 'ADMIN': return 'Admin';
       default: return 'Pilih Role';
+    }
+  };
+
+  const getRoleIcon = (role) => {
+    switch(role) {
+      case 'DOSEN': return '👨‍🏫';
+      case 'MAHASISWA': return '🎓';
+      case 'REVIEWER': return '📋';
+      case 'ADMIN': return '⚙';
+      default: return '';
     }
   };
 
@@ -76,7 +139,7 @@ const LoginForm = () => {
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden transition-all duration-300 hover:shadow-2xl">
         <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 text-center">
           <div className="inline-block p-4 bg-white/20 rounded-full mb-4">
-            <div className="text-white text-4xl">🏛️</div>
+            <div className="text-white text-4xl">🏛</div>
           </div>
           <h2 className="text-2xl font-bold text-white">Login P3M Polimdo</h2>
           <p className="text-blue-100 mt-1">
@@ -95,6 +158,7 @@ const LoginForm = () => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Role Selector */}
             <div>
               <label className="flex text-sm font-medium text-gray-700 mb-2 items-center">
                 <User className="w-4 h-4 mr-2 text-indigo-600" />
@@ -106,70 +170,67 @@ const LoginForm = () => {
                   onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
                   disabled={loading || isSubmitting}
                   className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:bg-gray-100 flex justify-between items-center ${
+                    fieldErrors.role ? 'border-red-300 bg-red-50' : 
                     formData.role ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-300'
                   }`}
                 >
-                  <span className={formData.role ? 'text-blue-700 font-medium' : 'text-gray-400'}>
+                  <span className={`flex items-center ${
+                    formData.role ? 'text-blue-700 font-medium' : 'text-gray-400'
+                  }`}>
+                    {formData.role && <span className="mr-2">{getRoleIcon(formData.role)}</span>}
                     {getRoleLabel(formData.role)}
                   </span>
                   <ChevronDown className={`transition-transform ${roleDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
-                
+
                 {roleDropdownOpen && (
                   <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden animate-dropdown">
-                    <div 
-                      className="px-4 py-3 hover:bg-blue-50 cursor-pointer transition-colors"
-                      onClick={() => handleRoleSelect('DOSEN')}
-                    >
-                      Dosen
-                    </div>
-                    <div 
-                      className="px-4 py-3 hover:bg-blue-50 cursor-pointer transition-colors"
-                      onClick={() => handleRoleSelect('MAHASISWA')}
-                    >
-                      Mahasiswa
-                    </div>
-                    <div 
-                      className="px-4 py-3 hover:bg-blue-50 cursor-pointer transition-colors"
-                      onClick={() => handleRoleSelect('REVIEWER')}
-                    >
-                      Reviewer
-                    </div>
+                    {['DOSEN', 'MAHASISWA', 'REVIEWER', 'ADMIN'].map(role => (
+                      <div
+                        key={role}
+                        className="px-4 py-3 hover:bg-blue-50 cursor-pointer transition-colors flex items-center"
+                        onClick={() => handleRoleSelect(role)}
+                      >
+                        <span className="mr-2">{getRoleIcon(role)}</span>
+                        {getRoleLabel(role)}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
-              
-              {formData.role && (
-                <div className="mt-2 text-xs text-blue-600 flex items-center animate-fade-in">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                  </svg>
-                  Anda akan login sebagai {getRoleLabel(formData.role)}
-                </div>
+              {fieldErrors.role && (
+                <p className="mt-2 text-sm text-red-600">{fieldErrors.role}</p>
               )}
             </div>
 
+            {/* Email Field */}
             <div>
               <label htmlFor="email" className="flex text-sm font-medium text-gray-700 mb-2 items-center">
                 <Mail className="w-4 h-4 mr-2 text-indigo-600" />
                 Email
               </label>
-              <div className="relative">
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="Masukkan email Anda"
-                  required
-                  disabled={loading || isSubmitting}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:outline-none disabled:bg-gray-100 transition-colors"
-                />
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-              </div>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                disabled={loading || isSubmitting}
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:bg-gray-100 ${
+                  emailError || fieldErrors.email
+                    ? 'border-red-300 bg-red-50'
+                    : formData.email
+                    ? 'border-blue-200 bg-blue-50'
+                    : 'border-gray-300 bg-white'
+                }`}
+                placeholder="user@example.com"
+              />
+              {(emailError || fieldErrors.email) && (
+                <p className="mt-2 text-sm text-red-600">{emailError || fieldErrors.email}</p>
+              )}
             </div>
 
+            {/* Password Field */}
             <div>
               <label htmlFor="password" className="flex text-sm font-medium text-gray-700 mb-2 items-center">
                 <Lock className="w-4 h-4 mr-2 text-indigo-600" />
@@ -182,57 +243,50 @@ const LoginForm = () => {
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
-                  placeholder="Masukkan password Anda"
-                  required
                   disabled={loading || isSubmitting}
-                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:outline-none disabled:bg-gray-100 transition-colors"
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:bg-gray-100 ${
+                    fieldErrors.password
+                      ? 'border-red-300 bg-red-50'
+                      : formData.password
+                      ? 'border-blue-200 bg-blue-50'
+                      : 'border-gray-300 bg-white'
+                  }`}
+                  placeholder="••••••••"
                 />
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-4 flex items-center"
                   disabled={loading || isSubmitting}
-                  className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700 disabled:text-gray-300"
                 >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {showPassword ? <EyeOff className="w-5 h-5 text-gray-400" /> : <Eye className="w-5 h-5 text-gray-400" />}
                 </button>
               </div>
+              {fieldErrors.password && (
+                <p className="mt-2 text-sm text-red-600">{fieldErrors.password}</p>
+              )}
             </div>
 
+            {/* Submit Button */}
             <button
               type="submit"
-              disabled={loading || isSubmitting || !formData.role}
-              className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-indigo-800 transition-all duration-300 transform hover:-translate-y-0.5 disabled:opacity-50 disabled:transform-none disabled:cursor-not-allowed shadow-md hover:shadow-lg"
+              disabled={loading || isSubmitting}
+              className={`w-full py-3 rounded-lg text-white font-medium transition-all duration-300 ${
+                isSubmitting || loading
+                  ? 'bg-indigo-300 cursor-not-allowed'
+                  : 'bg-indigo-600 hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500'
+              }`}
             >
-              {loading || isSubmitting ? (
-                <div className="flex items-center justify-center">
-                  <svg className="animate-spin h-5 w-5 mr-2 text-white" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Memproses...
-                </div>
-              ) : (
-                <div className="flex items-center justify-center">
-                  <Lock className="w-4 h-4 mr-2" />
-                  Login
-                </div>
-              )}
+              {isSubmitting ? 'Loading...' : 'Login'}
             </button>
           </form>
 
-          <div className="text-center text-sm text-gray-600 pt-4 border-t border-gray-100">
-            <p>
-              Belum punya akun?{' '}
-              <button
-                onClick={() => navigate('/register')}
-                disabled={loading || isSubmitting}
-                className="text-blue-600 hover:text-blue-800 font-medium hover:underline transition-colors disabled:text-gray-400"
-              >
-                Daftar di sini
-              </button>
-            </p>
-          </div>
+          <p className="text-center text-sm text-gray-500">
+            Belum punya akun?{' '}
+            <a href="/register" className="text-indigo-600 font-medium hover:underline">
+              Daftar Sekarang
+            </a>
+          </p>
         </div>
       </div>
     </div>

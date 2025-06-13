@@ -1,4 +1,3 @@
-// src/pages/Skema/Create.js
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SkemaForm from '../../components/Skema/SkemaForm';
@@ -8,26 +7,47 @@ import Loading from '../../components/Common/Loading';
 
 const SkemaCreate = () => {
   const navigate = useNavigate();
-  const { showSuccess, showError } = useToast(); // ✅ Gunakan yang benar
+  const { showSuccess, showError } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (skemaData) => {
     try {
       setLoading(true);
+      setError('');
+
+      console.log('Submitting skema:', skemaData);
+
       const response = await skemaService.createSkema(skemaData);
 
+      console.log('Service response:', response);
+
       if (response.success) {
-        showSuccess('Skema berhasil dibuat');
-        navigate(`/skema/${response.data.id}`);
+        const successMessage = typeof response.message === 'string'
+          ? response.message
+          : 'Skema berhasil dibuat';
+
+        showSuccess(successMessage);
+        navigate('/skema');
       } else {
-        setError(response.message || 'Gagal membuat skema');
-        showError(response.message || 'Gagal membuat skema');
+        const errorMessage = typeof response.message === 'string'
+          ? response.message
+          : 'Gagal membuat skema';
+
+        setError(errorMessage);
+        showError(errorMessage);
       }
     } catch (err) {
       console.error('Error creating skema:', err);
-      setError('Terjadi kesalahan saat membuat skema');
-      showError('Terjadi kesalahan saat membuat skema');
+
+      const errorMessage = typeof err.response?.data?.message === 'string'
+        ? err.response.data.message
+        : typeof err.message === 'string'
+          ? err.message
+          : 'Terjadi kesalahan saat membuat skema';
+
+      setError(errorMessage);
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }

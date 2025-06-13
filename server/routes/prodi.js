@@ -8,7 +8,7 @@ router.get('/', prodiController.getAllProdi);
 
 // GET /api/prodi/:id - Get prodi by ID (PUBLIC)
 router.get('/:id', prodiController.getProdiById);
-
+ 
 // POST /api/prodi - Create new prodi (PUBLIC)
 router.post('/', prodiController.createProdi);
 
