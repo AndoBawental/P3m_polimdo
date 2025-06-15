@@ -244,43 +244,45 @@ const proposalController = {
   },
 
   // SUBMIT
-  submit: async (req, res) => {
-    try {
-      const { id } = req.params;
+submit: async (req, res) => {
+  try {
+    const { id } = req.params;
 
-      const proposal = await prisma.proposal.findUnique({
-        where: { id: parseInt(id) },
-        include: { documents: true, members: true }
-      });
+    const proposal = await prisma.proposal.findUnique({
+      where: { id: parseInt(id) },
+      include: { documents: true, members: true }
+    });
 
-      if (!proposal) return sendError(res, 'Proposal tidak ditemukan', 404);
+    if (!proposal) return sendError(res, 'Proposal tidak ditemukan', 404);
 
-      const canSubmit =
-        proposal.ketuaId === req.user.id ||
-        proposal.members.some(m => m.userId === req.user.id);
+    const allowedRoles = ['ADMIN', 'DOSEN', 'MAHASISWA'];
+    const isAllowedRole = allowedRoles.includes(req.user.role);
+    const isInvolved = 
+      proposal.ketuaId === req.user.id || 
+      proposal.members.some(m => m.userId === req.user.id);
 
-      if (!canSubmit && req.user.role !== 'ADMIN') {
-        return sendError(res, 'Akses ditolak', 403);
-      }
-
-      if (proposal.status !== 'DRAFT') {
-        return sendError(res, 'Proposal sudah diajukan sebelumnya', 400);
-      }
-
-      const updated = await prisma.proposal.update({
-        where: { id: parseInt(id) },
-        data: {
-          status: 'SUBMITTED',
-          tanggal_submit: new Date()
-        }
-      });
-
-      sendResponse(res, 'Proposal berhasil diajukan', { proposal: updated });
-    } catch (error) {
-      console.error('Submit proposal error:', error);
-      sendError(res, 'Terjadi kesalahan server', 500);
+    if (!(isAllowedRole && isInvolved)) {
+      return sendError(res, 'Akses ditolak', 403);
     }
-  },
+
+    if (proposal.status !== 'DRAFT') {
+      return sendError(res, 'Proposal sudah diajukan sebelumnya', 400);
+    }
+
+    const updated = await prisma.proposal.update({
+      where: { id: parseInt(id) },
+      data: {
+        status: 'SUBMITTED',
+        tanggal_submit: new Date()
+      }
+    });
+
+    sendResponse(res, 'Proposal berhasil diajukan', { proposal: updated });
+  } catch (error) {
+    console.error('Submit proposal error:', error);
+    sendError(res, 'Terjadi kesalahan server', 500);
+  }
+},
 
   // DELETE
   delete: async (req, res) => {

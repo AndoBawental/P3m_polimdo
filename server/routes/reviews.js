@@ -15,31 +15,31 @@ const {
 const { verifyToken } = require('../middlewares/auth');
 const { roleMiddleware } = require('../middlewares/roleMiddleware');
 
-// ✅ Middleware: Semua route di bawah ini butuh login
+// All routes require authentication
 router.use(verifyToken);
 
-// ✅ GET all reviews (admin, reviewer, dosen, mahasiswa)
+// GET all reviews
 router.get('/', roleMiddleware(['ADMIN', 'REVIEWER', 'DOSEN', 'MAHASISWA']), getAllReviews);
 
-// ✅ GET proposals untuk direview (reviewer dan admin)
+// GET proposals for review
 router.get('/proposals', roleMiddleware(['REVIEWER', 'ADMIN']), getProposalsForReview);
 
-// ✅ GET reviewers (admin only)
+// GET reviewers list
 router.get('/reviewers', roleMiddleware(['ADMIN']), getReviewers);
 
-// ✅ POST create new review (reviewer dan admin)
+// POST create new review
 router.post('/', roleMiddleware(['REVIEWER', 'ADMIN']), createReview);
 
-// ✅ POST assign reviewer ke proposal (admin only)
+// POST assign reviewer to proposal
 router.post('/assign', roleMiddleware(['ADMIN']), assignReviewer);
 
-// ✅ GET review by ID (accessible by semua role, pembatasan detail di controller)
+// GET review by ID
 router.get('/:id', roleMiddleware(['ADMIN', 'REVIEWER', 'DOSEN', 'MAHASISWA']), getReviewById);
 
-// ✅ PUT update review (admin dan reviewer only)
+// PUT update review
 router.put('/:id', roleMiddleware(['ADMIN', 'REVIEWER']), updateReview);
 
-// ✅ DELETE review (admin only)
+// DELETE review
 router.delete('/:id', roleMiddleware(['ADMIN']), deleteReview);
 
 module.exports = router;

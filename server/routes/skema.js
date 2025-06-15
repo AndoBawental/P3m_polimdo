@@ -1,18 +1,17 @@
-// server/routes/skema.js
 const express = require('express');
 const router = express.Router();
 const skemaController = require('../controllers/skema.controller');
 const { auth } = require('../middlewares/auth');
-const { roleMiddleware } = require('../middlewares/roleMiddleware'); // ✅ gunakan destructuring
+const { roleMiddleware } = require('../middlewares/roleMiddleware');
 
-// Public routes (can be accessed without authentication for viewing)
+// Public routes
 router.get('/stats', skemaController.getSkemaStats);
 router.get('/active', skemaController.getActiveSkema);
-router.get('/:id', skemaController.getSkemaById);
 router.get('/', skemaController.getAllSkema);
+router.get('/:id', skemaController.getSkemaById);  // Tetap publik
 
-// Protected routes - require authentication
-router.use(auth); // Apply authentication to all routes below
+// 🔒 Protected routes - require authentication
+router.use(auth);
 
 // Admin only routes
 router.post('/', roleMiddleware(['ADMIN']), skemaController.createSkema);

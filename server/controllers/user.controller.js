@@ -1,4 +1,3 @@
-// server/controllers/userController.js
 const bcrypt = require('bcryptjs');
 const { prisma } = require('../config/database');
 const { sendResponse, sendError } = require('../utils/response');
@@ -15,7 +14,7 @@ const userController = {
       if (role && Object.values(USER_ROLES).includes(role)) {
         where.role = role;
       }
-      if (status && Object.values(USER_STATUS).includes(status)) { // PERBAIKAN: Ganti STATUS ke USER_STATUS
+      if (status && Object.values(USER_STATUS).includes(status)) {
         where.status = status;
       }
       if (search) {
@@ -84,7 +83,7 @@ const userController = {
     }
   },
 
-  // PERBAIKAN UTAMA: Fungsi getTeamMembers yang diperbaiki
+  // Fungsi getTeamMembers yang diperbaiki
   getTeamMembers: async (req, res) => {
     try {
       const currentUserId = req.user.id;
@@ -96,7 +95,7 @@ const userController = {
             in: [USER_ROLES.DOSEN, USER_ROLES.MAHASISWA]
           },
           id: {
-            not: currentUserId // Exclude current user
+            not: currentUserId
           }
         },
         select: {
@@ -122,12 +121,11 @@ const userController = {
           }
         },
         orderBy: [
-          { role: 'asc' }, // DOSEN dulu, kemudian MAHASISWA
-          { nama: 'asc' }  // Urutkan berdasarkan nama
+          { role: 'asc' },
+          { nama: 'asc' }
         ]
       });
 
-      // PERBAIKAN: Pastikan response format sesuai dengan yang diharapkan frontend
       sendResponse(res, 'Berhasil mendapatkan anggota tim', { users });
 
     } catch (error) {
@@ -136,17 +134,15 @@ const userController = {
     }
   },
 
-  // Get user by ID - FIXED
+  // Get user by ID
   getById: async (req, res) => {
     try {
       const { id } = req.params;
 
-      // Validate ID parameter
       if (!id) {
         return sendError(res, 'ID user tidak boleh kosong', 400);
       }
 
-      // Parse and validate ID as integer
       const userId = parseInt(id);
       if (isNaN(userId)) {
         return sendError(res, 'ID user tidak valid', 400);
@@ -209,7 +205,6 @@ const userController = {
         prodiId
       } = req.body;
 
-      // Validation
       if (!Object.values(USER_ROLES).includes(role)) {
         return sendError(res, 'Role tidak valid', 400);
       }
@@ -222,7 +217,6 @@ const userController = {
         return sendError(res, 'NIP wajib diisi untuk dosen/reviewer', 400);
       }
 
-      // Check existing user
       const existingUser = await prisma.user.findFirst({
         where: {
           OR: [
@@ -289,7 +283,7 @@ const userController = {
     }
   },
 
-  // Update user - FIXED
+  // Update user
   update: async (req, res) => {
     try {
       const { id } = req.params;
@@ -306,7 +300,6 @@ const userController = {
         password
       } = req.body;
 
-      // Validate ID parameter
       if (!id) {
         return sendError(res, 'ID user tidak boleh kosong', 400);
       }
@@ -316,7 +309,6 @@ const userController = {
         return sendError(res, 'ID user tidak valid', 400);
       }
 
-      // Check if user exists
       const existingUser = await prisma.user.findUnique({
         where: { id: userId }
       });
@@ -384,13 +376,12 @@ const userController = {
     }
   },
 
-  // Update user status - FIXED
+  // Update user status
   updateStatus: async (req, res) => {
     try {
       const { id } = req.params;
       const { status } = req.body;
 
-      // Validate ID parameter
       if (!id) {
         return sendError(res, 'ID user tidak boleh kosong', 400);
       }
@@ -400,7 +391,7 @@ const userController = {
         return sendError(res, 'ID user tidak valid', 400);
       }
 
-      if (!Object.values(USER_STATUS).includes(status)) { // PERBAIKAN: Ganti STATUS ke USER_STATUS
+      if (!Object.values(USER_STATUS).includes(status)) {
         return sendError(res, 'Status tidak valid', 400);
       }
 
@@ -426,12 +417,11 @@ const userController = {
     }
   },
 
-  // Delete user - FIXED
+  // Delete user
   delete: async (req, res) => {
     try {
       const { id } = req.params;
 
-      // Validate ID parameter
       if (!id) {
         return sendError(res, 'ID user tidak boleh kosong', 400);
       }
@@ -441,7 +431,6 @@ const userController = {
         return sendError(res, 'ID user tidak valid', 400);
       }
 
-      // Check if user has related data
       const userWithRelations = await prisma.user.findUnique({
         where: { id: userId },
         include: {
@@ -476,13 +465,35 @@ const userController = {
     }
   },
 
+  // Get user statistics
+  getUserStats: async (req, res) => {
+    try {
+      const total = await prisma.user.count();
+      const active = await prisma.user.count({
+        where: { status: USER_STATUS.AKTIF }
+      });
+      const inactive = await prisma.user.count({
+        where: { status: USER_STATUS.NONAKTIF }
+      });
+
+      sendResponse(res, 'Berhasil mendapatkan statistik pengguna', {
+        totalUsers: total,
+        activeUsers: active,
+        inactiveUsers: inactive
+      });
+    } catch (error) {
+      console.error('Get user stats error:', error);
+      sendError(res, 'Terjadi kesalahan server', 500);
+    }
+  },
+
   // Get reviewers
   getReviewers: async (req, res) => {
     try {
       const reviewers = await prisma.user.findMany({
         where: {
           role: USER_ROLES.REVIEWER,
-          status: USER_STATUS.AKTIF // PERBAIKAN: Ganti STATUS ke USER_STATUS
+          status: USER_STATUS.AKTIF
         },
         select: {
           id: true,

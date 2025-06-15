@@ -9,7 +9,9 @@ import {
   Users,
   Clock,
   CheckCircle,
-  Star
+  Star,
+  Plus,
+  Filter
 } from 'lucide-react';
 import ReviewService from '../../services/reviewService';
 import ReviewForm from './ReviewForm';
@@ -18,6 +20,8 @@ import Pagination from '../Common/Pagination';
 
 const ReviewList = () => {
   const [reviews, setReviews] = useState([]);
+  const [proposalsToReview, setProposalsToReview] = useState([]);
+  const [reviewers, setReviewers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { user } = useAuth();
@@ -32,6 +36,7 @@ const ReviewList = () => {
   const [filters, setFilters] = useState({
     search: '',
     status: 'all',
+    reviewer: 'all',
     page: 1,
     limit: 10
   });
@@ -39,7 +44,11 @@ const ReviewList = () => {
   // Modal states
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showProposalModal, setShowProposalModal] = useState(false); // Modal baru untuk proposal
   const [selectedReview, setSelectedReview] = useState(null);
+  const [selectedProposal, setSelectedProposal] = useState(null);
+  const [selectedProposalForView, setSelectedProposalForView] = useState(null); // State baru untuk proposal yang dilihat
 
   // Pagination
   const [pagination, setPagination] = useState({
@@ -50,22 +59,64 @@ const ReviewList = () => {
   });
 
   useEffect(() => {
-    fetchReviews();
+    fetchData();
   }, [filters]);
+
+  useEffect(() => {
+    // Fetch reviewers for admin filter
+    if (user?.role === 'ADMIN') {
+      fetchReviewers();
+    }
+  }, [user]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // Fetch reviews dan proposals untuk direview secara paralel
+      await Promise.all([
+        fetchReviews(),
+        (user?.role === 'REVIEWER' || user?.role === 'ADMIN') && fetchProposalsToReview()
+      ]);
+    } catch (err) {
+      setError('Gagal memuat data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchReviews = async () => {
     try {
-      setLoading(true);
-      setError('');
-      
       const response = await ReviewService.getReviews(filters);
       setReviews(response.data.reviews);
       setPagination(response.data.pagination);
       setStats(response.data.stats);
     } catch (err) {
       setError(err.message || 'Gagal memuat data review');
-    } finally {
-      setLoading(false);
+    }
+  };
+
+  const fetchProposalsToReview = async () => {
+    try {
+      const params = { 
+        search: filters.search,
+        // Reviewer hanya melihat proposal yang ditugaskan kepadanya
+        reviewerId: user?.role === 'REVIEWER' ? user.id : undefined,
+        status: 'SUBMITTED,REVIEW'
+      };
+      
+      const response = await ReviewService.getProposalsToReview(params);
+      setProposalsToReview(response.data.proposals || []);
+    } catch (err) {
+      console.error('Gagal mengambil proposal yang perlu direview:', err);
+    }
+  };
+
+  const fetchReviewers = async () => {
+    try {
+      const response = await ReviewService.getReviewers();
+      setReviewers(response.data || []);
+    } catch (err) {
+      console.error('Gagal mengambil data reviewer:', err);
     }
   };
 
@@ -89,15 +140,28 @@ const ReviewList = () => {
     setShowViewModal(true);
   };
 
+  // Fungsi baru untuk melihat detail proposal
+  const handleViewProposal = (proposal) => {
+    setSelectedProposalForView(proposal);
+    setShowProposalModal(true);
+  };
+
   const handleEditReview = (review) => {
     setSelectedReview(review);
     setShowEditModal(true);
   };
 
-  const handleEditSuccess = () => {
+  const handleCreateReview = (proposal) => {
+    setSelectedProposal(proposal);
+    setShowCreateModal(true);
+  };
+
+  const handleSuccess = () => {
     setShowEditModal(false);
+    setShowCreateModal(false);
     setSelectedReview(null);
-    fetchReviews(); // Refresh data
+    setSelectedProposal(null);
+    fetchData();
   };
 
   const getStatusBadgeColor = (status) => {
@@ -108,9 +172,31 @@ const ReviewList = () => {
         return 'bg-red-100 text-red-800';
       case 'REVISI':
         return 'bg-yellow-100 text-yellow-800';
+      case 'SUBMITTED':
+        return 'bg-blue-100 text-blue-800';
+      case 'REVIEW':
+        return 'bg-purple-100 text-purple-800';
+      case 'APPROVED':
+        return 'bg-green-100 text-green-800';
+      case 'REJECTED':
+        return 'bg-red-100 text-red-800';
+      case 'REVISION':
+        return 'bg-yellow-100 text-yellow-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const getProposalStatusLabel = (status) => {
+    const labels = {
+      'SUBMITTED': 'Perlu Review',
+      'REVIEW': 'Sedang Review',
+      'APPROVED': 'Disetujui',
+      'REJECTED': 'Ditolak',
+      'REVISION': 'Perlu Revisi',
+      'DRAFT': 'Draft'
+    };
+    return labels[status] || status;
   };
 
   const formatDate = (dateString) => {
@@ -121,7 +207,15 @@ const ReviewList = () => {
     });
   };
 
-  // Header title berdasarkan role
+  const formatCurrency = (amount) => {
+    if (!amount) return '-';
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
   const getPageTitle = () => {
     switch (user?.role) {
       case 'MAHASISWA':
@@ -152,35 +246,41 @@ const ReviewList = () => {
     }
   };
 
-// ✅ TAMBAHAN: Helper untuk menampilkan status edit
-const getEditStatusMessage = (review) => {
-  if (user?.role === 'REVIEWER' && review.reviewer.id === user.id) {
-    const editableStatuses = ['REVIEW', 'SUBMITTED'];
-    if (!editableStatuses.includes(review.proposal.status)) {
-      return 'Review sudah final dan tidak dapat diedit';
-    }
-  }
-  return '';
-};
-
-
-
-  // Check if user can edit review
   const canEditReview = (review) => {
-  // Admin selalu bisa edit
-  if (user?.role === 'ADMIN') return true;
-  
-  // Reviewer hanya bisa edit milik sendiri dan belum final
-  if (user?.role === 'REVIEWER' && review.reviewer.id === user.id) {
-    // Cek apakah review masih bisa diedit (proposal masih dalam status review)
-    const editableStatuses = ['REVIEW', 'SUBMITTED'];
-    return editableStatuses.includes(review.proposal.status);
-  }
-  
-  return false;
-};
+    if (user?.role === 'ADMIN') return true;
+    
+    if (user?.role === 'REVIEWER' && review.reviewer.id === user.id) {
+      const editableStatuses = ['REVIEW', 'SUBMITTED'];
+      return editableStatuses.includes(review.proposal.status);
+    }
+    
+    return false;
+  };
+
+  const canCreateReview = (proposal) => {
+    if (user?.role === 'ADMIN') return true;
+    
+    if (user?.role === 'REVIEWER') {
+      const reviewableStatuses = ['SUBMITTED', 'REVIEW'];
+      const hasReviewed = proposal.reviews?.some(review => review.reviewer.id === user.id);
+      return reviewableStatuses.includes(proposal.status) && !hasReviewed;
+    }
+    
+    return false;
+  };
 
   if (loading) return <Loading />;
+
+  // Gabungkan data review dan proposal yang perlu direview
+  const combinedData = [
+    ...reviews,
+    ...proposalsToReview.map(proposal => ({
+      id: null, // Menandakan belum ada review
+      proposal,
+      status: 'PENDING_REVIEW',
+      reviewer: proposal.reviewer || { id: user.id, nama: user.nama }
+    }))
+  ];
 
   return (
     <div className="space-y-6">
@@ -243,9 +343,14 @@ const getEditStatusMessage = (review) => {
         </div>
       </div>
 
-      {/* Simple Filters */}
+      {/* Filters */}
       <div className="bg-white p-6 rounded-lg shadow-sm border">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="flex items-center gap-2 mb-4">
+          <Filter className="h-5 w-5 text-gray-500" />
+          <h3 className="text-lg font-medium text-gray-900">Filter</h3>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -269,6 +374,22 @@ const getEditStatusMessage = (review) => {
             <option value="TIDAK_LAYAK">Tidak Layak</option>
             <option value="REVISI">Perlu Revisi</option>
           </select>
+
+          {/* Reviewer Filter - Admin Only */}
+          {user?.role === 'ADMIN' && (
+            <select
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={filters.reviewer}
+              onChange={(e) => handleFilterChange('reviewer', e.target.value)}
+            >
+              <option value="all">Semua Reviewer</option>
+              {reviewers.map((reviewer) => (
+                <option key={reviewer.id} value={reviewer.id}>
+                  {reviewer.nama}
+                </option>
+              ))}
+            </select>
+          )}
 
           {/* Items per page */}
           <select
@@ -305,13 +426,16 @@ const getEditStatusMessage = (review) => {
                   </th>
                 )}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Skor
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Rekomendasi
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tanggal Review
+                  Tanggal
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Aksi
@@ -319,9 +443,9 @@ const getEditStatusMessage = (review) => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {reviews.length === 0 ? (
+              {combinedData.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
                     {user?.role === 'MAHASISWA' ? 
                       'Belum ada review untuk proposal Anda' : 
                       user?.role === 'REVIEWER' ?
@@ -331,88 +455,123 @@ const getEditStatusMessage = (review) => {
                   </td>
                 </tr>
               ) : (
-                reviews.map((review) => (
-                  <tr key={review.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {review.proposal.judul}
-                        </div>
-                        <div className="text-sm text-gray-500 mt-1">
-                          {user?.role !== 'MAHASISWA' && `${review.proposal.ketua.nama} • `}
-                          {review.proposal.tahun}
-                        </div>
-                      </div>
-                    </td>
-                    
-                    {(user?.role === 'ADMIN' || user?.role === 'DOSEN') && (
+                combinedData.map((item) => {
+                  const isReview = item.id !== null;
+                  
+                  return (
+                    <tr key={isReview ? `review-${item.id}` : `proposal-${item.proposal.id}`} 
+                        className="hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <div>
                           <div className="text-sm font-medium text-gray-900">
-                            {review.reviewer.nama}
+                            {item.proposal.judul}
                           </div>
-                          <div className="text-sm text-gray-500">
-                            {review.reviewer.bidang_keahlian}
+                          <div className="text-sm text-gray-500 mt-1">
+                            {user?.role !== 'MAHASISWA' && `${item.proposal.ketua.nama} • `}
+                            {item.proposal.tahun}
                           </div>
                         </div>
                       </td>
-                    )}
-                    
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900 font-medium">
-                        {review.skor_total ? 
-                          <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded flex items-center">
-                            <Star className="h-3 w-3 mr-1" />
-                            {parseFloat(review.skor_total).toFixed(1)}
-                          </span> : 
-                          <span className="text-gray-400">Belum dinilai</span>
-                        }
-                      </div>
-                    </td>
-                    
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getStatusBadgeColor(review.rekomendasi)}`}>
-                        {ReviewService.getStatusLabel(review.rekomendasi)}
-                      </span>
-                    </td>
-                    
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {formatDate(review.tanggal_review)}
-                    </td>
-                    
-                    <td className="px-6 py-4">
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleViewReview(review)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Lihat Detail"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        
-                        {canEditReview(review) ? (
-  <button
-    onClick={() => handleEditReview(review)}
-    className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-    title="Edit Review"
-  >
-    <Edit className="h-4 w-4" />
-  </button>
-) : (
-  user?.role === 'REVIEWER' && review.reviewer.id === user.id && (
-    <button
-      disabled
-      className="p-2 text-gray-400 cursor-not-allowed rounded-lg"
-      title={getEditStatusMessage(review)}
-    >
-      <Edit className="h-4 w-4" />
-    </button>
-  )
-)}
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      
+                      {(user?.role === 'ADMIN' || user?.role === 'DOSEN') && (
+                        <td className="px-6 py-4">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {item.reviewer?.nama || 'Belum ditugaskan'}
+                            </div>
+                            {item.reviewer?.bidang_keahlian && (
+                              <div className="text-sm text-gray-500">
+                                {item.reviewer.bidang_keahlian}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                      
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getStatusBadgeColor(item.proposal.status)}`}>
+                          {getProposalStatusLabel(item.proposal.status)}
+                        </span>
+                      </td>
+                      
+                      <td className="px-6 py-4">
+                        {isReview ? (
+                          item.skor_total ? 
+                            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded flex items-center w-fit">
+                              <Star className="h-3 w-3 mr-1" />
+                              {parseFloat(item.skor_total).toFixed(1)}
+                            </span> 
+                            : 
+                            <span className="text-gray-400">Belum dinilai</span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      
+                      <td className="px-6 py-4">
+                        {isReview ? (
+                          <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getStatusBadgeColor(item.rekomendasi)}`}>
+                            {ReviewService.getStatusLabel(item.rekomendasi)}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      
+                      <td className="px-6 py-4 text-sm text-gray-500">
+                        {isReview ? 
+                          formatDate(item.tanggal_review) : 
+                          formatDate(item.proposal.createdAt)}
+                      </td>
+                      
+                      <td className="px-6 py-4">
+                        <div className="flex space-x-2">
+                          {isReview ? (
+                            <>
+                              <button
+                                onClick={() => handleViewReview(item)}
+                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                title="Lihat Detail"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </button>
+                              
+                              {canEditReview(item) && (
+                                <button
+                                  onClick={() => handleEditReview(item)}
+                                  className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                  title="Edit Review"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleViewProposal(item.proposal)}
+                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                title="Lihat Proposal"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </button>
+                              
+                              {canCreateReview(item.proposal) && (
+                                <button
+                                  onClick={() => handleCreateReview(item.proposal)}
+                                  className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                  title="Buat Review"
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -469,7 +628,7 @@ const getEditStatusMessage = (review) => {
                   </div>
                 </div>
 
-                {/* Reviewer Info - Hide for Mahasiswa */}
+                {/* Reviewer Info */}
                 {user?.role !== 'MAHASISWA' && (
                   <div className="bg-blue-50 rounded-lg p-4">
                     <h4 className="font-medium text-gray-900 mb-3">Informasi Reviewer</h4>
@@ -543,8 +702,117 @@ const getEditStatusMessage = (review) => {
         <ReviewForm
           review={selectedReview}
           onClose={() => setShowEditModal(false)}
-          onSuccess={handleEditSuccess}
+          onSuccess={handleSuccess}
         />
+      )}
+
+      {/* Create Review Modal */}
+      {showCreateModal && selectedProposal && (
+        <ReviewForm
+          proposal={selectedProposal}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={handleSuccess}
+        />
+      )}
+
+      {/* Proposal Detail Modal */}
+      {showProposalModal && selectedProposalForView && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-900">
+                  Detail Proposal
+                </h3>
+                <button
+                  onClick={() => setShowProposalModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              
+              <div className="space-y-6">
+                {/* Proposal Info */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-900 mb-3">Informasi Proposal</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-700">Judul:</span>
+                      <p className="text-gray-900 mt-1">{selectedProposalForView.judul}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Ketua:</span>
+                      <p className="text-gray-900 mt-1">{selectedProposalForView.ketua.nama}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Tahun:</span>
+                      <p className="text-gray-900 mt-1">{selectedProposalForView.tahun}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Status:</span>
+                      <p className="text-gray-900 mt-1">
+                        <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getStatusBadgeColor(selectedProposalForView.status)}`}>
+                          {getProposalStatusLabel(selectedProposalForView.status)}
+                        </span>
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Skema:</span>
+                      <p className="text-gray-900 mt-1">{selectedProposalForView.skema?.nama || '-'}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Dana Diusulkan:</span>
+                      <p className="text-gray-900 mt-1">{formatCurrency(selectedProposalForView.dana_diusulkan)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reviewer Info */}
+                {selectedProposalForView.reviewer && (
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <h4 className="font-medium text-gray-900 mb-3">Reviewer</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="font-medium text-gray-700">Nama:</span>
+                        <p className="text-gray-900 mt-1">{selectedProposalForView.reviewer.nama}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-700">Email:</span>
+                        <p className="text-gray-900 mt-1">{selectedProposalForView.reviewer.email}</p>
+                      </div>
+                      {selectedProposalForView.reviewer.bidang_keahlian && (
+                        <div className="md:col-span-2">
+                          <span className="font-medium text-gray-700">Bidang Keahlian:</span>
+                          <p className="text-gray-900 mt-1">{selectedProposalForView.reviewer.bidang_keahlian}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Abstrak */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 mb-2">Abstrak</h4>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-gray-700 whitespace-pre-wrap">
+                      {selectedProposalForView.abstrak || 'Tidak ada abstrak'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end mt-6 pt-4 border-t">
+                <button
+                  onClick={() => setShowProposalModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

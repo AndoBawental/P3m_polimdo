@@ -13,33 +13,82 @@ const userService = {
       if (params.status) queryParams.append('status', params.status);
 
       const response = await api.get(`/users?${queryParams.toString()}`);
+      
+      // Handle response format
+      let users = [];
+      let pagination = { total: 0, pages: 0, page: 1, limit: 10 };
+      
+      if (response.data.data && response.data.data.users) {
+        // Format: { data: { users: [...], pagination: {...} } }
+        users = response.data.data.users;
+        pagination = response.data.data.pagination;
+      } else if (response.data.users) {
+        // Format: { users: [...], pagination: {...} }
+        users = response.data.users;
+        pagination = response.data.pagination;
+      } else if (Array.isArray(response.data)) {
+        // Format: [...]
+        users = response.data;
+        pagination = {
+          total: response.headers['x-total-count'] || users.length,
+          pages: response.headers['x-total-pages'] || 1,
+          page: parseInt(response.headers['x-current-page'] || 1),
+          limit: parseInt(response.headers['x-per-page'] || 10)
+        };
+      } else {
+        console.warn('Unexpected response format:', response.data);
+        users = [];
+      }
+
       return {
         success: true,
-        data: response.data.data || response.data
+        data: {
+          users,
+          pagination
+        }
       };
     } catch (error) {
       console.error('Error fetching users:', error);
       return {
         success: false,
-        data: { users: [], pagination: { total: 0, pages: 0, page: 1, limit: 10 } },
-        error: error.response?.data?.message || 'Failed to fetch users'
+        error: error.response?.data?.message || 'Failed to fetch users',
+        data: { users: [], pagination: { total: 0, pages: 0, page: 1, limit: 10 } }
       };
     }
   },
 
-  // Mendapatkan user berdasarkan ID
-  getUserById: async (id) => {
+  // Mendapatkan statistik user
+  getUserStats: async () => {
     try {
-      const response = await api.get(`/users/${id}`);
+      const response = await api.get('/users/stats');
+      
+      // Handle berbagai format respons
+      let statsData = {};
+      
+      if (response.data.data) {
+        // Format: { data: { totalUsers: ..., activeUsers: ..., inactiveUsers: ... } }
+        statsData = response.data.data;
+      } else if (response.data) {
+        // Format: { totalUsers: ..., activeUsers: ..., inactiveUsers: ... }
+        statsData = response.data;
+      } else {
+        console.warn('Unexpected stats response format:', response.data);
+        statsData = {
+          totalUsers: 0,
+          activeUsers: 0,
+          inactiveUsers: 0
+        };
+      }
+
       return {
         success: true,
-        data: response.data.data || response.data
+        data: statsData
       };
     } catch (error) {
-      console.error('Error fetching user by ID:', error);
+      console.error('Error fetching user stats:', error);
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to fetch user'
+        error: error.response?.data?.message || 'Failed to fetch user stats'
       };
     }
   },
@@ -48,9 +97,13 @@ const userService = {
   createUser: async (userData) => {
     try {
       const response = await api.post('/users', userData);
+      
+      // Handle response format
+      const user = response.data.data || response.data;
+      
       return {
         success: true,
-        data: response.data.data || response.data
+        data: user
       };
     } catch (error) {
       console.error('Error creating user:', error);
@@ -65,9 +118,13 @@ const userService = {
   updateUser: async (id, userData) => {
     try {
       const response = await api.put(`/users/${id}`, userData);
+      
+      // Handle response format
+      const user = response.data.data || response.data;
+      
       return {
         success: true,
-        data: response.data.data || response.data
+        data: user
       };
     } catch (error) {
       console.error('Error updating user:', error);
@@ -78,13 +135,17 @@ const userService = {
     }
   },
 
-  // Update status user - diperbaiki sesuai dengan controller
+  // Update status user
   updateUserStatus: async (id, status) => {
     try {
       const response = await api.put(`/users/${id}/status`, { status });
+      
+      // Handle response format
+      const user = response.data.data || response.data;
+      
       return {
         success: true,
-        data: response.data.data || response.data
+        data: user
       };
     } catch (error) {
       console.error('Error updating user status:', error);
@@ -99,9 +160,13 @@ const userService = {
   deleteUser: async (id) => {
     try {
       const response = await api.delete(`/users/${id}`);
+      
+      // Handle response format
+      const result = response.data.data || response.data;
+      
       return {
         success: true,
-        data: response.data.data || response.data
+        data: result
       };
     } catch (error) {
       console.error('Error deleting user:', error);
@@ -116,9 +181,13 @@ const userService = {
   getProfile: async () => {
     try {
       const response = await api.get('/users/profile');
+      
+      // Handle response format
+      const profile = response.data.data || response.data;
+      
       return {
         success: true,
-        data: response.data.data || response.data
+        data: profile
       };
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -133,9 +202,13 @@ const userService = {
   updateProfile: async (profileData) => {
     try {
       const response = await api.put('/users/profile', profileData);
+      
+      // Handle response format
+      const profile = response.data.data || response.data;
+      
       return {
         success: true,
-        data: response.data.data || response.data
+        data: profile
       };
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -150,43 +223,53 @@ const userService = {
   getReviewers: async () => {
     try {
       const response = await api.get('/users/reviewers');
+      
+      // Handle berbagai format respons
+      let reviewers = [];
+      
+      if (response.data.data && response.data.data.reviewers) {
+        reviewers = response.data.data.reviewers;
+      } else if (response.data.reviewers) {
+        reviewers = response.data.reviewers;
+      } else if (response.data.data && Array.isArray(response.data.data)) {
+        reviewers = response.data.data;
+      } else if (Array.isArray(response.data)) {
+        reviewers = response.data;
+      } else {
+        console.warn('Unexpected reviewers response format:', response.data);
+        reviewers = [];
+      }
+
       return {
         success: true,
-        data: response.data.data || response.data
+        data: reviewers
       };
     } catch (error) {
       console.error('Error fetching reviewers:', error);
       return {
         success: false,
-        data: { reviewers: [] },
-        error: error.response?.data?.message || 'Failed to fetch reviewers'
+        error: error.response?.data?.message || 'Failed to fetch reviewers',
+        data: []
       };
     }
   },
 
-  // PERBAIKAN UTAMA: Mendapatkan team members
+  // Mendapatkan team members
   getTeamMembers: async () => {
     try {
       console.log('🔄 Fetching team members...');
-      
       const response = await api.get('/users/team-members');
-      
       console.log('📥 Team members response:', response.data);
       
-      // PERBAIKAN: Handle berbagai format response yang mungkin
       let users = [];
       
       if (response.data.data && response.data.data.users) {
-        // Format: { data: { users: [...] } }
         users = response.data.data.users;
       } else if (response.data.users) {
-        // Format: { users: [...] }
         users = response.data.users;
       } else if (response.data.data && Array.isArray(response.data.data)) {
-        // Format: { data: [...] }
         users = response.data.data;
       } else if (Array.isArray(response.data)) {
-        // Format: [...]
         users = response.data;
       } else {
         console.warn('⚠️ Unexpected response format:', response.data);
@@ -202,19 +285,15 @@ const userService = {
     } catch (error) {
       console.error('❌ Error fetching team members:', error);
       
-      // PERBAIKAN: Lebih detail dalam error handling
       let errorMessage = 'Failed to fetch team members';
       
       if (error.response) {
-        // Server responded with error status
         console.error('Server error response:', error.response.data);
         errorMessage = error.response.data?.message || `Server error: ${error.response.status}`;
       } else if (error.request) {
-        // Request was made but no response received
         console.error('No response received:', error.request);
         errorMessage = 'No response from server. Please check your connection.';
       } else {
-        // Something else happened
         console.error('Request setup error:', error.message);
         errorMessage = error.message;
       }

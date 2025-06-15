@@ -1,52 +1,112 @@
+// client/src/services/fileService.js
 import api from './api';
 
 const fileService = {
-  uploadDocument: async (formData) => {
+  // Upload document to a proposal
+  uploadDocument: async (proposalId, file, metadata = {}) => {
     try {
-      const response = await api.post('/files/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      // Add optional metadata (name, type, etc.)
+      Object.entries(metadata).forEach(([key, value]) => {
+        formData.append(key, value);
       });
+
+      const response = await api.post(
+        `/api/files/proposals/${proposalId}/documents`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+
+      return {
+        success: true,
+        data: response.data,
+        message: 'Document uploaded successfully'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 
+               `File upload failed: ${error.message}`,
+        status: error.response?.status
+      };
+    }
+  },
+
+  // Get documents by proposal
+  getDocumentsByProposal: async (proposalId) => {
+    try {
+      const response = await api.get(
+        `/api/files/proposals/${proposalId}/documents`
+      );
       
       return {
         success: true,
-        data: response.data
+        data: response.data,
+        documents: response.data.documents || []
       };
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to upload document'
+        error: error.response?.data?.message || 
+               `Failed to fetch documents: ${error.message}`,
+        status: error.response?.status
       };
     }
   },
 
-  getDocuments: async (proposalId) => {
+  // Download document
+  downloadDocument: async (documentId) => {
     try {
-      const response = await api.get(`/files?proposalId=${proposalId}`);
+      const response = await api.get(
+        `/api/files/documents/${documentId}`,
+        {
+          responseType: 'blob' // Important for file downloads
+        }
+      );
+      
+      // Create download URL
+      const url = window.URL.createObjectURL(new Blob([response.data]));
       return {
         success: true,
-        data: response.data
+        url,
+        fileName: response.headers['content-disposition']
+                  ? response.headers['content-disposition'].split('filename=')[1]
+                  : `document-${documentId}`
       };
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to fetch documents'
+        error: error.response?.data?.message || 
+               `Download failed: ${error.message}`,
+        status: error.response?.status
       };
     }
   },
 
-  deleteDocument: async (id) => {
+  // Delete document
+  deleteDocument: async (documentId) => {
     try {
-      const response = await api.delete(`/files/${id}`);
+      const response = await api.delete(
+        `/api/files/documents/${documentId}`
+      );
+      
       return {
         success: true,
-        data: response.data
+        data: response.data,
+        message: 'Document deleted successfully'
       };
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to delete document'
+        error: error.response?.data?.message || 
+               `Delete failed: ${error.message}`,
+        status: error.response?.status
       };
     }
   }

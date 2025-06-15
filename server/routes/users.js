@@ -27,4 +27,7 @@ router.put('/:id', roleAccess.roleMiddleware(['ADMIN']), userController.update);
 router.put('/:id/status', roleAccess.roleMiddleware(['ADMIN']), userController.updateStatus);
 router.delete('/:id', roleAccess.roleMiddleware(['ADMIN']), userController.delete);
 
+// PERBAIKAN: Tambahkan endpoint untuk statistik pengguna
+router.get('/stats', roleAccess.roleMiddleware(['ADMIN']), userController.getUserStats);
+
 module.exports = router;
