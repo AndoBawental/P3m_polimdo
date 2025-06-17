@@ -10,28 +10,28 @@ datasource db {
 // ==================== MODELS ====================
 
 model User {
-  id               Int       @id @default(autoincrement())
-  nip              String?   @unique
-  nim              String?   @unique
-  nama             String
-  email            String    @unique
-  password         String
-  role             UserRole
-  no_telp          String?
-  bidang_keahlian  String?
-  jurusanId        Int?
-  prodiId          Int?
-  status           Status    @default(AKTIF)
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id                Int                @id @default(autoincrement())
+  nip               String?            @unique
+  nim               String?            @unique
+  nama              String
+  email             String             @unique
+  password          String
+  role              UserRole
+  no_telp           String?
+  bidang_keahlian   String?
+  jurusanId         Int?
+  prodiId           Int?
+  status            Status             @default(AKTIF)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   // Relations
-  jurusan          Jurusan?   @relation(fields: [jurusanId], references: [id])
-  prodi            Prodi?     @relation(fields: [prodiId], references: [id])
-  proposals        Proposal[]         @relation("ProposalKetua")
-  reviewedProposals Proposal[]        @relation("ProposalReviewer")
-  proposalMembers  ProposalMember[]
-  reviews          Review[]
+  jurusan           Jurusan?           @relation(fields: [jurusanId], references: [id])
+  prodi             Prodi?             @relation(fields: [prodiId], references: [id])
+  proposals         Proposal[]         @relation("ProposalKetua")
+  reviewedProposals Proposal[]         @relation("ProposalReviewer")
+  proposalMembers   ProposalMember[]
+  reviews           Review[]
 
   @@map("users")
 }
@@ -110,11 +110,12 @@ model Proposal {
 }
 
 model ProposalMember {
-  id         Int      @id @default(autoincrement())
+  id         Int                @id @default(autoincrement())
   proposalId Int
   userId     Int
   peran      String
-  createdAt  DateTime @default(now())
+  createdAt  DateTime           @default(now())
+  status     PersetujuanAnggota @default(PENDING)
 
   // Relations
   proposal Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
@@ -201,4 +202,10 @@ enum Rekomendasi {
   LAYAK
   TIDAK_LAYAK
   REVISI
+}
+
+enum PersetujuanAnggota {
+  PENDING
+  APPROVED
+  REJECTED
 }
