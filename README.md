@@ -64,7 +64,7 @@ client/
 │   │   │   ├── UserCard.js
 │   │   │   └── UserForm.js
 |   |   |
-│   │   ├── Files/(Masih tahap perlu dikembangkan)
+│   │   ├── Files/
 │   │   │   ├── FileUpload.js
 │   │   │   ├── FileManager.js
 │   │   │   ├── DocumentList.js
@@ -154,9 +154,9 @@ client/
 │   │   ├── skemaService.js
 │   │   ├── userService.js
 │   │   ├── dashboardService.js
-│   │   ├── fileService.js (masih tahap perlu dikembangkan)
+│   │   ├── fileService.js 
 │   │   ├── jurusanService.js
-|   |   |-- pengumumanService (masih tahap perlu dikembangkan)
+|   |   |-- pengumumanService
 │   │   └── prodiService.js
 |   |
 │   ├── utils/
@@ -192,8 +192,8 @@ server/
 │   ├── skema.Controller.js
 │   ├── review.Controller.js
 │   ├── dashboard.Controller.js
-│   ├── pengumuman.controller.js (masih dalam Tahap perlu dikembangkan)
-│   ├── file.Controller.js (masih dalam Tahap perlu dikembangkan)
+│   ├── pengumuman.controller.js 
+│   ├── file.Controller.js 
 │   ├── jurusanController.js
 │   └── prodiController.js
 |
@@ -212,12 +212,12 @@ server/
 
 ├── middleware/
 │   ├── auth.js
-│   ├── cors.js (Fungsi nya belum diterapkan fungsi file)
-│   ├── upload.js (Fungsi nya belum diterapkan fungsi file)
+│   ├── cors.js 
+│   ├── upload.js 
 |   |-- errorHandler.js 
 │   ├── validator.js
 │   ├── logger.js
-│   ├── rateLimiter.js (Fungsi nya belum diterapkan fungsi file)
+│   ├── rateLimiter.js 
 │   └── roleMiddleware.js
 |  
 ├── prisma/
@@ -225,7 +225,7 @@ server/
 │   ├── seed-p3m.js
 │   └── migrations/
 |   
-├── uploads/ (masih perlu Dibuat belum selesai)
+├── uploads/ 
 │   ├── documents/
 │   ├── proposals/
 │   ├── reviews/
@@ -239,8 +239,8 @@ server/
 │   ├── constants.js
 │   ├── helper.js
 │   ├── dateHelper.js
-│   ├── fileUpload.js (masih perlu di Kembangkan belum selesai)
-│   └── email.js (ini juga fungsinya belum diterapkan)
+│   ├── fileUpload.js 
+│   └── email.js 
 |
 ├── logs/
 │   └── app.log
