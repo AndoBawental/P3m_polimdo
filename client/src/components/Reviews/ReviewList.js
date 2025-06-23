@@ -1,22 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react'; 
+import { X, CalendarDays, User, MessageSquare, Search, Eye, Edit, FileText, Users, Clock, CheckCircle, Star, Plus, Filter } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { 
-  Search, 
-  Eye,
-  Edit,
-  FileText,
-  Users,
-  Clock,
-  CheckCircle,
-  Star,
-  Plus,
-  Filter
-} from 'lucide-react';
 import ReviewService from '../../services/reviewService';
 import ReviewForm from './ReviewForm';
 import Loading from '../Common/Loading';
 import Pagination from '../Common/Pagination';
+import { motion } from 'framer-motion';
 
 const ReviewList = () => {
   const [reviews, setReviews] = useState([]);
@@ -45,10 +34,10 @@ const ReviewList = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showProposalModal, setShowProposalModal] = useState(false); // Modal baru untuk proposal
+  const [showProposalModal, setShowProposalModal] = useState(false);
   const [selectedReview, setSelectedReview] = useState(null);
   const [selectedProposal, setSelectedProposal] = useState(null);
-  const [selectedProposalForView, setSelectedProposalForView] = useState(null); // State baru untuk proposal yang dilihat
+  const [selectedProposalForView, setSelectedProposalForView] = useState(null);
 
   // Pagination
   const [pagination, setPagination] = useState({
@@ -63,7 +52,6 @@ const ReviewList = () => {
   }, [filters]);
 
   useEffect(() => {
-    // Fetch reviewers for admin filter
     if (user?.role === 'ADMIN') {
       fetchReviewers();
     }
@@ -72,7 +60,6 @@ const ReviewList = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch reviews dan proposals untuk direview secara paralel
       await Promise.all([
         fetchReviews(),
         (user?.role === 'REVIEWER' || user?.role === 'ADMIN') && fetchProposalsToReview()
@@ -99,7 +86,6 @@ const ReviewList = () => {
     try {
       const params = { 
         search: filters.search,
-        // Reviewer hanya melihat proposal yang ditugaskan kepadanya
         reviewerId: user?.role === 'REVIEWER' ? user.id : undefined,
         status: 'SUBMITTED,REVIEW'
       };
@@ -140,7 +126,6 @@ const ReviewList = () => {
     setShowViewModal(true);
   };
 
-  // Fungsi baru untuk melihat detail proposal
   const handleViewProposal = (proposal) => {
     setSelectedProposalForView(proposal);
     setShowProposalModal(true);
@@ -167,21 +152,20 @@ const ReviewList = () => {
   const getStatusBadgeColor = (status) => {
     switch (status) {
       case 'LAYAK':
+      case 'APPROVED':
+      case 'DITERIMA':
         return 'bg-green-100 text-green-800';
       case 'TIDAK_LAYAK':
+      case 'REJECTED':
+      case 'DITOLAK':
         return 'bg-red-100 text-red-800';
       case 'REVISI':
+      case 'REVISION':
         return 'bg-yellow-100 text-yellow-800';
       case 'SUBMITTED':
         return 'bg-blue-100 text-blue-800';
       case 'REVIEW':
         return 'bg-purple-100 text-purple-800';
-      case 'APPROVED':
-        return 'bg-green-100 text-green-800';
-      case 'REJECTED':
-        return 'bg-red-100 text-red-800';
-      case 'REVISION':
-        return 'bg-yellow-100 text-yellow-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -271,11 +255,10 @@ const ReviewList = () => {
 
   if (loading) return <Loading />;
 
-  // Gabungkan data review dan proposal yang perlu direview
   const combinedData = [
     ...reviews,
     ...proposalsToReview.map(proposal => ({
-      id: null, // Menandakan belum ada review
+      id: null,
       proposal,
       status: 'PENDING_REVIEW',
       reviewer: proposal.reviewer || { id: user.id, nama: user.nama }
@@ -284,88 +267,105 @@ const ReviewList = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">{getPageTitle()}</h2>
-          <p className="text-gray-600">{getPageDescription()}</p>
+      {/* Header with gradient background */}
+      <motion.div 
+        className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl shadow-lg p-6 text-white"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold">{getPageTitle()}</h2>
+            <p className="text-blue-100 mt-1">{getPageDescription()}</p>
+          </div>
+          
+          {user?.role === 'REVIEWER' && proposalsToReview.length > 0 && (
+            <motion.button
+             
+            >
+            
+             
+            </motion.button>
+          )}
         </div>
-      </div>
+      </motion.div>
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <FileText className="h-6 w-6 text-blue-600" />
+        {[
+          { 
+            label: 'Total Reviews', 
+            value: stats.total, 
+            icon: <FileText className="h-6 w-6 text-blue-600" />,
+            bg: 'bg-blue-100'
+          },
+          { 
+            label: 'Layak', 
+            value: stats.layak, 
+            icon: <CheckCircle className="h-6 w-6 text-green-600" />,
+            bg: 'bg-green-100'
+          },
+          { 
+            label: 'Perlu Revisi', 
+            value: stats.revisi, 
+            icon: <Clock className="h-6 w-6 text-yellow-600" />,
+            bg: 'bg-yellow-100'
+          },
+          { 
+            label: 'Tidak Layak', 
+            value: stats.tidak_layak, 
+            icon: <Users className="h-6 w-6 text-red-600" />,
+            bg: 'bg-red-100'
+          }
+        ].map((stat, index) => (
+          <motion.div 
+            key={stat.label}
+            className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1, duration: 0.3 }}
+            whileHover={{ y: -5 }}
+          >
+            <div className="flex items-center p-5">
+              <div className={`p-3 rounded-lg ${stat.bg}`}>
+                {stat.icon}
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">{stat.label}</p>
+                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+              </div>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Reviews</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <CheckCircle className="h-6 w-6 text-green-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Layak</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.layak}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <div className="flex items-center">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <Clock className="h-6 w-6 text-yellow-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Perlu Revisi</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.revisi}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <div className="flex items-center">
-            <div className="p-2 bg-red-100 rounded-lg">
-              <Users className="h-6 w-6 text-red-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Tidak Layak</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.tidak_layak}</p>
-            </div>
-          </div>
-        </div>
+          </motion.div>
+        ))}
       </div>
 
       {/* Filters */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
+      <motion.div 
+        className="bg-white rounded-xl shadow-md border border-gray-100 p-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2, duration: 0.3 }}
+      >
         <div className="flex items-center gap-2 mb-4">
-          <Filter className="h-5 w-5 text-gray-500" />
-          <h3 className="text-lg font-medium text-gray-900">Filter</h3>
+          <Filter className="h-5 w-5 text-indigo-600" />
+          <h3 className="text-lg font-medium text-gray-900">Filter Data</h3>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
             <input
               type="text"
               placeholder="Cari judul proposal..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               value={filters.search}
               onChange={(e) => handleFilterChange('search', e.target.value)}
             />
           </div>
 
-          {/* Status Filter */}
           <select
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
             value={filters.status}
             onChange={(e) => handleFilterChange('status', e.target.value)}
           >
@@ -375,10 +375,9 @@ const ReviewList = () => {
             <option value="REVISI">Perlu Revisi</option>
           </select>
 
-          {/* Reviewer Filter - Admin Only */}
           {user?.role === 'ADMIN' && (
             <select
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
               value={filters.reviewer}
               onChange={(e) => handleFilterChange('reviewer', e.target.value)}
             >
@@ -391,9 +390,8 @@ const ReviewList = () => {
             </select>
           )}
 
-          {/* Items per page */}
           <select
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
             value={filters.limit}
             onChange={(e) => handleFilterChange('limit', e.target.value)}
           >
@@ -402,56 +400,73 @@ const ReviewList = () => {
             <option value={50}>50 per halaman</option>
           </select>
         </div>
-      </div>
+      </motion.div>
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <motion.div 
+          className="bg-red-50 border border-red-200 rounded-lg p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
           <p className="text-red-600">{error}</p>
-        </div>
+        </motion.div>
       )}
 
       {/* Reviews Table */}
-      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+      <motion.div 
+        className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3, duration: 0.3 }}
+      >
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">
                   Proposal
                 </th>
                 {(user?.role === 'ADMIN' || user?.role === 'DOSEN') && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">
                     Reviewer
                   </th>
                 )}
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">
                   Skor
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">
                   Rekomendasi
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">
                   Tanggal
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">
                   Aksi
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white divide-y divide-gray-100">
               {combinedData.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
-                    {user?.role === 'MAHASISWA' ? 
-                      'Belum ada review untuk proposal Anda' : 
-                      user?.role === 'REVIEWER' ?
-                      'Belum ada proposal yang ditugaskan untuk direview' :
-                      'Belum ada data review'
-                    }
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                    <div className="flex flex-col items-center justify-center">
+                      <FileText className="h-12 w-12 text-gray-300 mb-4" />
+                      <h4 className="text-lg font-medium text-gray-500 mb-1">
+                        {user?.role === 'MAHASISWA' ? 
+                          'Belum ada review untuk proposal Anda' : 
+                          user?.role === 'REVIEWER' ?
+                          'Belum ada proposal yang ditugaskan untuk direview' :
+                          'Belum ada data review'
+                        }
+                      </h4>
+                      <p className="text-sm text-gray-400">
+                        Silakan coba filter yang berbeda atau tambahkan data baru
+                      </p>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -459,31 +474,54 @@ const ReviewList = () => {
                   const isReview = item.id !== null;
                   
                   return (
-                    <tr key={isReview ? `review-${item.id}` : `proposal-${item.proposal.id}`} 
-                        className="hover:bg-gray-50">
+                    <motion.tr 
+                      key={isReview ? `review-${item.id}` : `proposal-${item.proposal.id}`}
+                      className="hover:bg-gray-50 transition-colors"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3 }}
+                    >
                       <td className="px-6 py-4">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {item.proposal.judul}
+                        <div className="flex items-center">
+                          <div className="bg-gray-100 rounded-lg p-2 mr-3">
+                            <FileText className="h-5 w-5 text-gray-600" />
                           </div>
-                          <div className="text-sm text-gray-500 mt-1">
-                            {user?.role !== 'MAHASISWA' && `${item.proposal.ketua.nama} • `}
-                            {item.proposal.tahun}
+                          <div>
+                            <div className="text-sm font-medium text-gray-900 line-clamp-2">
+                              {item.proposal.judul}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1 flex items-center">
+                              {user?.role !== 'MAHASISWA' && (
+                                <span className="flex items-center mr-3">
+                                  <User className="h-3 w-3 mr-1" />
+                                  {item.proposal.ketua.nama}
+                                </span>
+                              )}
+                              <span className="flex items-center">
+                                <CalendarDays className="h-3 w-3 mr-1" />
+                                {item.proposal.tahun}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </td>
                       
                       {(user?.role === 'ADMIN' || user?.role === 'DOSEN') && (
                         <td className="px-6 py-4">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {item.reviewer?.nama || 'Belum ditugaskan'}
+                          <div className="flex items-center">
+                            <div className="bg-blue-100 rounded-lg p-2 mr-3">
+                              <User className="h-5 w-5 text-blue-600" />
                             </div>
-                            {item.reviewer?.bidang_keahlian && (
-                              <div className="text-sm text-gray-500">
-                                {item.reviewer.bidang_keahlian}
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {item.reviewer?.nama || 'Belum ditugaskan'}
                               </div>
-                            )}
+                              {item.reviewer?.bidang_keahlian && (
+                                <div className="text-xs text-gray-500 mt-1">
+                                  {item.reviewer.bidang_keahlian}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </td>
                       )}
@@ -495,16 +533,15 @@ const ReviewList = () => {
                       </td>
                       
                       <td className="px-6 py-4">
-                        {isReview ? (
-                          item.skor_total ? 
-                            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded flex items-center w-fit">
-                              <Star className="h-3 w-3 mr-1" />
+                        {isReview && item.skor_total ? (
+                          <div className="flex items-center bg-blue-50 rounded-full px-3 py-1 w-fit">
+                            <Star className="h-4 w-4 text-blue-600 mr-1" />
+                            <span className="text-sm font-medium text-blue-800">
                               {parseFloat(item.skor_total).toFixed(1)}
-                            </span> 
-                            : 
-                            <span className="text-gray-400">Belum dinilai</span>
+                            </span>
+                          </div>
                         ) : (
-                          <span className="text-gray-400">-</span>
+                          <span className="text-xs text-gray-400 px-2 py-1 bg-gray-100 rounded">-</span>
                         )}
                       </td>
                       
@@ -514,7 +551,7 @@ const ReviewList = () => {
                             {ReviewService.getStatusLabel(item.rekomendasi)}
                           </span>
                         ) : (
-                          <span className="text-gray-400">-</span>
+                          <span className="text-xs text-gray-400 px-2 py-1 bg-gray-100 rounded">-</span>
                         )}
                       </td>
                       
@@ -528,55 +565,63 @@ const ReviewList = () => {
                         <div className="flex space-x-2">
                           {isReview ? (
                             <>
-                              <button
+                              <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
                                 onClick={() => handleViewReview(item)}
                                 className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                 title="Lihat Detail"
                               >
-                                <Eye className="h-4 w-4" />
-                              </button>
+                                <Eye className="h-5 w-5" />
+                              </motion.button>
                               
                               {canEditReview(item) && (
-                                <button
+                                <motion.button
+                                  whileHover={{ scale: 1.1 }}
+                                  whileTap={{ scale: 0.9 }}
                                   onClick={() => handleEditReview(item)}
                                   className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                                   title="Edit Review"
                                 >
-                                  <Edit className="h-4 w-4" />
-                                </button>
+                                  <Edit className="h-5 w-5" />
+                                </motion.button>
                               )}
                             </>
                           ) : (
                             <>
-                              <button
+                              <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
                                 onClick={() => handleViewProposal(item.proposal)}
                                 className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                 title="Lihat Proposal"
                               >
-                                <Eye className="h-4 w-4" />
-                              </button>
+                                <Eye className="h-5 w-5" />
+                              </motion.button>
                               
                               {canCreateReview(item.proposal) && (
-                                <button
+                                <motion.button
+                                  whileHover={{ scale: 1.1 }}
+                                  whileTap={{ scale: 0.9 }}
                                   onClick={() => handleCreateReview(item.proposal)}
                                   className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                                   title="Buat Review"
                                 >
-                                  <Plus className="h-4 w-4" />
-                                </button>
+                                  <Plus className="h-5 w-5" />
+                                </motion.button>
                               )}
                             </>
                           )}
                         </div>
                       </td>
-                    </tr>
+                    </motion.tr>
                   );
                 })
               )}
             </tbody>
           </table>
         </div>
-      </div>
+      </motion.div>
 
       {/* Pagination */}
       <Pagination
@@ -587,111 +632,174 @@ const ReviewList = () => {
         onPageChange={handlePageChange}
       />
 
-      {/* View Modal */}
+      {/* View Review Modal */}
       {showViewModal && selectedReview && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-gray-900">
-                  Detail Review
-                </h3>
-                <button
-                  onClick={() => setShowViewModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="h-6 w-6" />
-                </button>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 flex justify-between items-center">
+              <div>
+                <h3 className="text-2xl font-bold text-white">Detail Review</h3>
+                <p className="text-blue-100 mt-1 flex items-center gap-1">
+                  <CalendarDays className="h-4 w-4" />
+                  <span>{formatDate(selectedReview.tanggal_review)}</span>
+                </p>
               </div>
-              
-              <div className="space-y-6">
-                {/* Proposal Info */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-medium text-gray-900 mb-3">Informasi Proposal</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="font-medium text-gray-700">Judul:</span>
-                      <p className="text-gray-900 mt-1">{selectedReview.proposal.judul}</p>
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-700">Ketua:</span>
-                      <p className="text-gray-900 mt-1">{selectedReview.proposal.ketua.nama}</p>
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-700">Tahun:</span>
-                      <p className="text-gray-900 mt-1">{selectedReview.proposal.tahun}</p>
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-700">Status:</span>
-                      <p className="text-gray-900 mt-1">{selectedReview.proposal.status}</p>
-                    </div>
-                  </div>
+              <button
+                onClick={() => setShowViewModal(false)}
+                className="text-white/80 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10"
+              >
+                <X className="h-7 w-7" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-grow p-6 space-y-6">
+              {/* Proposal Info */}
+              <div className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm">
+                <div className="flex items-center gap-2 mb-4">
+                  <FileText className="h-5 w-5 text-blue-600" />
+                  <h4 className="text-lg font-semibold text-gray-800">Informasi Proposal</h4>
                 </div>
-
-                {/* Reviewer Info */}
-                {user?.role !== 'MAHASISWA' && (
-                  <div className="bg-blue-50 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-3">Informasi Reviewer</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="font-medium text-gray-700">Nama:</span>
-                        <p className="text-gray-900 mt-1">{selectedReview.reviewer.nama}</p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-gray-700">Email:</span>
-                        <p className="text-gray-900 mt-1">{selectedReview.reviewer.email}</p>
-                      </div>
-                      {selectedReview.reviewer.bidang_keahlian && (
-                        <div className="md:col-span-2">
-                          <span className="font-medium text-gray-700">Bidang Keahlian:</span>
-                          <p className="text-gray-900 mt-1">{selectedReview.reviewer.bidang_keahlian}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Review Details */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-500 mb-2">Skor Total</h4>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {selectedReview.skor_total ? parseFloat(selectedReview.skor_total).toFixed(1) : 'Belum dinilai'}
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-gray-500">Judul</span>
+                    <p className="text-gray-900 font-medium mt-1 line-clamp-2">
+                      {selectedReview.proposal.judul}
                     </p>
                   </div>
                   
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-500 mb-2">Rekomendasi</h4>
-                    <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getStatusBadgeColor(selectedReview.rekomendasi)}`}>
-                      {ReviewService.getStatusLabel(selectedReview.rekomendasi)}
-                    </span>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-gray-500">Ketua</span>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {selectedReview.proposal.ketua.nama}
+                    </p>
                   </div>
-                </div>
-                
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500 mb-2">Tanggal Review</h4>
-                  <p className="text-gray-900">{formatDate(selectedReview.tanggal_review)}</p>
-                </div>
-                
-                {/* Catatan Review */}
-                {selectedReview.catatan && (
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-500 mb-2">Catatan Review</h4>
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <p className="text-gray-700 whitespace-pre-wrap">{selectedReview.catatan}</p>
+                  
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-gray-500">Tahun</span>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {selectedReview.proposal.tahun}
+                    </p>
+                  </div>
+                  
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-gray-500">Status</span>
+                    <div className="mt-1">
+                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        getStatusBadgeColor(selectedReview.proposal.status)
+                      }`}>
+                        {getProposalStatusLabel(selectedReview.proposal.status)}
+                      </span>
                     </div>
                   </div>
-                )}
+                </div>
+              </div>
+
+              {/* Reviewer Info */}
+              {user?.role !== 'MAHASISWA' && (
+                <div className="border border-gray-200 rounded-xl p-5 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-sm">
+                  <div className="flex items-center gap-2 mb-4">
+                    <User className="h-5 w-5 text-indigo-600" />
+                    <h4 className="text-lg font-semibold text-gray-800">Informasi Reviewer</h4>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-gray-500">Nama</span>
+                      <p className="text-gray-900 font-medium mt-1">
+                        {selectedReview.reviewer.nama}
+                      </p>
+                    </div>
+                    
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-gray-500">Email</span>
+                      <p className="text-gray-900 font-medium mt-1">
+                        {selectedReview.reviewer.email}
+                      </p>
+                    </div>
+                    
+                    {selectedReview.reviewer.bidang_keahlian && (
+                      <div className="md:col-span-2 flex flex-col">
+                        <span className="text-sm font-medium text-gray-500">Bidang Keahlian</span>
+                        <div className="mt-1 flex flex-wrap gap-2">
+                          {selectedReview.reviewer.bidang_keahlian.split(',').map((bidang, index) => (
+                            <span key={index} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                              {bidang.trim()}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Review Summary */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm">
+                  <div className="flex flex-col items-center">
+                    <h4 className="text-sm font-medium text-gray-500 mb-3">Skor Total</h4>
+                    <div className="relative">
+                      <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                        <span className="text-3xl font-bold text-white">
+                          {selectedReview.skor_total ? parseFloat(selectedReview.skor_total).toFixed(1) : 'N/A'}
+                        </span>
+                      </div>
+                      <div className="absolute inset-0 rounded-full border-8 border-blue-100 opacity-30"></div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm">
+                  <div className="flex flex-col items-center h-full justify-center">
+                    <h4 className="text-sm font-medium text-gray-500 mb-3">Rekomendasi</h4>
+                    <div className="text-center">
+                      <span className={`inline-flex px-4 py-2 text-lg font-bold rounded-full ${
+                        getStatusBadgeColor(selectedReview.rekomendasi)
+                      }`}>
+                        {ReviewService.getStatusLabel(selectedReview.rekomendasi)}
+                      </span>
+                      <p className="mt-3 text-gray-600 text-sm">
+                        {selectedReview.rekomendasi === 'DITERIMA' 
+                          ? 'Proposal memenuhi semua kriteria yang ditetapkan' 
+                          : selectedReview.rekomendasi === 'DITOLAK'
+                            ? 'Proposal belum memenuhi standar yang ditetapkan'
+                            : 'Proposal memerlukan perbaikan untuk dapat disetujui'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
               
-              <div className="flex justify-end mt-6 pt-4 border-t">
-                <button
-                  onClick={() => setShowViewModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Tutup
-                </button>
-              </div>
+              {/* Review Notes */}
+              {selectedReview.catatan && (
+                <div className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm">
+                  <div className="flex items-center gap-2 mb-4">
+                    <MessageSquare className="h-5 w-5 text-gray-600" />
+                    <h4 className="text-lg font-semibold text-gray-800">Catatan Reviewer</h4>
+                  </div>
+                  
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+                      {selectedReview.catatan}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Footer */}
+            <div className="border-t p-4 bg-gray-50 flex justify-end">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowViewModal(false)}
+                className="px-5 py-2.5 text-base font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-700 rounded-lg hover:from-blue-700 hover:to-indigo-800 transition-all shadow-md flex items-center gap-2"
+              >
+                <X className="h-5 w-5" />
+                Tutup
+              </motion.button>
             </div>
           </div>
         </div>
@@ -717,74 +825,93 @@ const ReviewList = () => {
 
       {/* Proposal Detail Modal */}
       {showProposalModal && selectedProposalForView && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-gray-900">
-                  Detail Proposal
-                </h3>
-                <button
-                  onClick={() => setShowProposalModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
-              
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 flex justify-between items-center">
+              <h3 className="text-2xl font-bold text-white">Detail Proposal</h3>
+              <button
+                onClick={() => setShowProposalModal(false)}
+                className="text-white/80 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10"
+              >
+                <X className="h-7 w-7" />
+              </button>
+            </div>
+            
+            <div className="overflow-y-auto flex-grow p-6 space-y-6">
               <div className="space-y-6">
                 {/* Proposal Info */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-medium text-gray-900 mb-3">Informasi Proposal</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="font-medium text-gray-700">Judul:</span>
-                      <p className="text-gray-900 mt-1">{selectedProposalForView.judul}</p>
+                <div className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm">
+                  <div className="flex items-center gap-2 mb-4">
+                    <FileText className="h-5 w-5 text-blue-600" />
+                    <h4 className="text-lg font-semibold text-gray-800">Informasi Proposal</h4>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-gray-500">Judul</span>
+                      <p className="text-gray-900 font-medium mt-1">{selectedProposalForView.judul}</p>
                     </div>
-                    <div>
-                      <span className="font-medium text-gray-700">Ketua:</span>
-                      <p className="text-gray-900 mt-1">{selectedProposalForView.ketua.nama}</p>
+                    
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-gray-500">Ketua</span>
+                      <p className="text-gray-900 font-medium mt-1">{selectedProposalForView.ketua.nama}</p>
                     </div>
-                    <div>
-                      <span className="font-medium text-gray-700">Tahun:</span>
-                      <p className="text-gray-900 mt-1">{selectedProposalForView.tahun}</p>
+                    
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-gray-500">Tahun</span>
+                      <p className="text-gray-900 font-medium mt-1">{selectedProposalForView.tahun}</p>
                     </div>
-                    <div>
-                      <span className="font-medium text-gray-700">Status:</span>
-                      <p className="text-gray-900 mt-1">
+                    
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-gray-500">Status</span>
+                      <div className="mt-1">
                         <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getStatusBadgeColor(selectedProposalForView.status)}`}>
                           {getProposalStatusLabel(selectedProposalForView.status)}
                         </span>
-                      </p>
+                      </div>
                     </div>
-                    <div>
-                      <span className="font-medium text-gray-700">Skema:</span>
-                      <p className="text-gray-900 mt-1">{selectedProposalForView.skema?.nama || '-'}</p>
+                    
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-gray-500">Skema</span>
+                      <p className="text-gray-900 font-medium mt-1">{selectedProposalForView.skema?.nama || '-'}</p>
                     </div>
-                    <div>
-                      <span className="font-medium text-gray-700">Dana Diusulkan:</span>
-                      <p className="text-gray-900 mt-1">{formatCurrency(selectedProposalForView.dana_diusulkan)}</p>
+                    
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-gray-500">Dana Diusulkan</span>
+                      <p className="text-gray-900 font-medium mt-1">{formatCurrency(selectedProposalForView.dana_diusulkan)}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Reviewer Info */}
                 {selectedProposalForView.reviewer && (
-                  <div className="bg-blue-50 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-3">Reviewer</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="font-medium text-gray-700">Nama:</span>
-                        <p className="text-gray-900 mt-1">{selectedProposalForView.reviewer.nama}</p>
+                  <div className="border border-gray-200 rounded-xl p-5 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-sm">
+                    <div className="flex items-center gap-2 mb-4">
+                      <User className="h-5 w-5 text-indigo-600" />
+                      <h4 className="text-lg font-semibold text-gray-800">Reviewer</h4>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-gray-500">Nama</span>
+                        <p className="text-gray-900 font-medium mt-1">{selectedProposalForView.reviewer.nama}</p>
                       </div>
-                      <div>
-                        <span className="font-medium text-gray-700">Email:</span>
-                        <p className="text-gray-900 mt-1">{selectedProposalForView.reviewer.email}</p>
+                      
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-gray-500">Email</span>
+                        <p className="text-gray-900 font-medium mt-1">{selectedProposalForView.reviewer.email}</p>
                       </div>
+                      
                       {selectedProposalForView.reviewer.bidang_keahlian && (
-                        <div className="md:col-span-2">
-                          <span className="font-medium text-gray-700">Bidang Keahlian:</span>
-                          <p className="text-gray-900 mt-1">{selectedProposalForView.reviewer.bidang_keahlian}</p>
+                        <div className="md:col-span-2 flex flex-col">
+                          <span className="text-sm font-medium text-gray-500">Bidang Keahlian</span>
+                          <div className="mt-1 flex flex-wrap gap-2">
+                            {selectedProposalForView.reviewer.bidang_keahlian.split(',').map((bidang, index) => (
+                              <span key={index} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                                {bidang.trim()}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -792,24 +919,31 @@ const ReviewList = () => {
                 )}
 
                 {/* Abstrak */}
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500 mb-2">Abstrak</h4>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-gray-700 whitespace-pre-wrap">
+                <div className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm">
+                  <div className="flex items-center gap-2 mb-4">
+                    <MessageSquare className="h-5 w-5 text-gray-600" />
+                    <h4 className="text-lg font-semibold text-gray-800">Abstrak</h4>
+                  </div>
+                  
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
                       {selectedProposalForView.abstrak || 'Tidak ada abstrak'}
                     </p>
                   </div>
                 </div>
               </div>
-              
-              <div className="flex justify-end mt-6 pt-4 border-t">
-                <button
-                  onClick={() => setShowProposalModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Tutup
-                </button>
-              </div>
+            </div>
+            
+            <div className="border-t p-4 bg-gray-50 flex justify-end">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowProposalModal(false)}
+                className="px-5 py-2.5 text-base font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-700 rounded-lg hover:from-blue-700 hover:to-indigo-800 transition-all shadow-md flex items-center gap-2"
+              >
+                <X className="h-5 w-5" />
+                Tutup
+              </motion.button>
             </div>
           </div>
         </div>

@@ -183,8 +183,6 @@ enum Status {
 enum Kategori {
   PENELITIAN
   PENGABDIAN
-  HIBAH_INTERNAL
-  HIBAH_EKSTERNAL
 }
 
 enum ProposalStatus {

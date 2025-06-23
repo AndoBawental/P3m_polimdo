@@ -1,88 +1,156 @@
-//client/src/components/Files/DocumentList.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Download, Trash2, File, Calendar } from 'lucide-react';
 import fileService from '../../services/fileService';
-import Button from '../Common/Button';
-import { useToast } from '../../context/ToastContext';
+import LoadingSpinner from '../Common/LoadingSpinner';
+import AlertMessage from '../Common/AlertMessage';
 
-const DocumentList = ({ documents, proposalId, onUploadSuccess }) => {
-  const [file, setFile] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const { showToast } = useToast();
+const DocumentList = ({ proposalId, onDocumentDelete, refreshTrigger }) => {
+  const [documents, setDocuments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [downloadingId, setDownloadingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
-  const handleFileChange = (e) => {
-    setFile(e.target.files[0]);
-  };
+  useEffect(() => {
+    fetchDocuments();
+  }, [proposalId, refreshTrigger]);
 
-  const handleUpload = async () => {
-    if (!file) return;
-    
+  const fetchDocuments = async () => {
     try {
-      setUploading(true);
-      const formData = new FormData();
-      formData.append('document', file);
-      formData.append('proposalId', proposalId);
-      formData.append('type', 'PROPOSAL_DOCUMENT');
-      
-      const result = await fileService.uploadDocument(formData);
-      if (result.success) {
-        showToast('success', 'Dokumen berhasil diunggah');
-        onUploadSuccess(result.data.document);
-        setFile(null);
-      } else {
-        showToast('error', result.error || 'Gagal mengunggah dokumen');
-      }
+      setLoading(true);
+      const response = await fileService.getProposalDocuments(proposalId);
+      setDocuments(response.data.documents || []);
+      setError('');
     } catch (error) {
-      showToast('error', 'Terjadi kesalahan saat mengunggah dokumen');
+      setError(error.message);
     } finally {
-      setUploading(false);
+      setLoading(false);
     }
   };
 
-  return (
-    <div>
-      <div className="mb-4">
-        <h3 className="text-md font-medium mb-2">Unggah Dokumen Baru</h3>
-        <div className="flex items-center gap-2">
-          <input
-            type="file"
-            onChange={handleFileChange}
-            className="border border-gray-300 rounded-md p-2 flex-1"
-          />
-          <Button 
-            onClick={handleUpload} 
-            disabled={!file || uploading}
-            loading={uploading}
-          >
-            Unggah
-          </Button>
-        </div>
-      </div>
+  const handleDownload = async (documentId, fileName) => {
+    try {
+      setDownloadingId(documentId);
+      await fileService.handleFileDownload(documentId, fileName);
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
-      <div className="border-t border-gray-200 pt-4">
-        <h3 className="text-md font-medium mb-2">Dokumen Terlampir</h3>
-        {documents.length === 0 ? (
-          <p className="text-gray-500 text-sm">Belum ada dokumen</p>
-        ) : (
-          <ul className="divide-y divide-gray-200">
-            {documents.map(doc => (
-              <li key={doc.id} className="py-3 flex justify-between items-center">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{doc.nama}</p>
-                  <p className="text-xs text-gray-500">{doc.tipe} - {doc.ukuran}</p>
-                </div>
-                <a 
-                  href={doc.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 text-sm"
-                >
-                  Unduh
-                </a>
-              </li>
-            ))}
-          </ul>
-        )}
+  const handleDelete = async (documentId) => {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus dokumen ini?')) {
+      return;
+    }
+
+    try {
+      setDeletingId(documentId);
+      await fileService.deleteFile(documentId);
+      
+      // Update local state
+      setDocuments(documents.filter(doc => doc.id !== documentId));
+      
+      if (onDocumentDelete) {
+        onDocumentDelete(documentId);
+      }
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('id-ID', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-8">
+        <LoadingSpinner />
       </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <AlertMessage
+        type="error"
+        message={error}
+        onClose={() => setError('')}
+      />
+    );
+  }
+
+  if (documents.length === 0) {
+    return (
+      <div className="text-center py-8 text-gray-500">
+        <File className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+        <p>Belum ada dokumen yang diupload</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {documents.map((document) => (
+        <div
+          key={document.id}
+          className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+        >
+          <div className="flex items-center space-x-3">
+            <File className="h-8 w-8 text-blue-500" />
+            <div>
+              <h4 className="text-sm font-medium text-gray-900">
+                {document.name}
+              </h4>
+              <div className="flex items-center space-x-4 text-xs text-gray-500">
+                <span className="flex items-center space-x-1">
+                  <Calendar className="h-3 w-3" />
+                  <span>{formatDate(document.uploadedAt)}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            {/* Download Button */}
+            <button
+              onClick={() => handleDownload(document.id, document.name)}
+              disabled={downloadingId === document.id}
+              className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors disabled:opacity-50"
+              title="Download"
+            >
+              {downloadingId === document.id ? (
+                <LoadingSpinner size="sm" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+            </button>
+
+            {/* Delete Button */}
+            <button
+              onClick={() => handleDelete(document.id)}
+              disabled={deletingId === document.id}
+              className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
+              title="Hapus"
+            >
+              {deletingId === document.id ? (
+                <LoadingSpinner size="sm" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+            </button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 };

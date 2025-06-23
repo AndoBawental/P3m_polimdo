@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Mulai seeding data...');
+  console.log('🚀 Mulai seeding data...');
   
   // Hash password default untuk semua user
   const saltRounds = 10;
@@ -22,12 +22,14 @@ async function main() {
     { nama: 'Pariwisata' }
   ];
 
+  console.log('🔧 Membuat jurusan...');
   const createdJurusan = {};
   for (const jurusan of jurusanData) {
     const created = await prisma.jurusan.create({
       data: jurusan
     });
     createdJurusan[jurusan.nama] = created;
+    console.log(`   ✅ Jurusan "${jurusan.nama}" dibuat (ID: ${created.id})`);
   }
 
   // ==================== CREATE PRODI ====================
@@ -60,16 +62,20 @@ async function main() {
     { nama: 'D3 Ekowisata Bawah Laut', jurusanId: createdJurusan['Pariwisata'].id }
   ];
 
+  console.log('🔧 Membuat prodi...');
   const createdProdi = {};
   for (const prodi of prodiData) {
     const created = await prisma.prodi.create({
       data: prodi
     });
     createdProdi[prodi.nama] = created;
+    console.log(`   ✅ Prodi "${prodi.nama}" dibuat (ID: ${created.id})`);
   }
 
   // ==================== CREATE USERS ====================
-  // 1. Admin (18 digit NIP)
+  console.log('👥 Membuat user...');
+  
+  // 1. Admin
   const admin = await prisma.user.create({
     data: {
       nip: 'ADM0000000000000001',
@@ -81,8 +87,9 @@ async function main() {
       status: 'AKTIF',
     },
   });
+  console.log(`   ✅ Admin "${admin.nama}" dibuat (ID: ${admin.id})`);
 
-  // 2. Dosen (18 digit NIP)
+  // 2. Dosen
   const dosen1 = await prisma.user.create({
     data: {
       nip: 'DSN0000000000000001',
@@ -97,6 +104,7 @@ async function main() {
       status: 'AKTIF',
     },
   });
+  console.log(`   ✅ Dosen "${dosen1.nama}" dibuat (ID: ${dosen1.id})`);
 
   const dosen2 = await prisma.user.create({
     data: {
@@ -112,8 +120,9 @@ async function main() {
       status: 'AKTIF',
     },
   });
+  console.log(`   ✅ Dosen "${dosen2.nama}" dibuat (ID: ${dosen2.id})`);
 
-  // 3. Mahasiswa (NIM tidak diubah)
+  // 3. Mahasiswa
   const mahasiswa1 = await prisma.user.create({
     data: {
       nim: '2021001',
@@ -127,6 +136,7 @@ async function main() {
       status: 'AKTIF',
     },
   });
+  console.log(`   ✅ Mahasiswa "${mahasiswa1.nama}" dibuat (ID: ${mahasiswa1.id})`);
 
   const mahasiswa2 = await prisma.user.create({
     data: {
@@ -141,8 +151,9 @@ async function main() {
       status: 'AKTIF',
     },
   });
+  console.log(`   ✅ Mahasiswa "${mahasiswa2.nama}" dibuat (ID: ${mahasiswa2.id})`);
 
-  // 4. Reviewer (18 digit NIP)
+  // 4. Reviewer
   const reviewer1 = await prisma.user.create({
     data: {
       nip: 'REV0000000000000001',
@@ -155,6 +166,7 @@ async function main() {
       status: 'AKTIF',
     },
   });
+  console.log(`   ✅ Reviewer "${reviewer1.nama}" dibuat (ID: ${reviewer1.id})`);
 
   const reviewer2 = await prisma.user.create({
     data: {
@@ -168,8 +180,11 @@ async function main() {
       status: 'AKTIF',
     },
   });
+  console.log(`   ✅ Reviewer "${reviewer2.nama}" dibuat (ID: ${reviewer2.id})`);
 
   // ==================== CREATE SKEMA ====================
+  console.log('📋 Membuat skema...');
+  
   const skemaPenelitian = await prisma.skema.create({
     data: {
       kode: 'PEN-2025-001',
@@ -185,6 +200,7 @@ async function main() {
       status: 'AKTIF',
     },
   });
+  console.log(`   ✅ Skema Penelitian "${skemaPenelitian.nama}" dibuat (ID: ${skemaPenelitian.id})`);
 
   const skemaPengabdian = await prisma.skema.create({
     data: {
@@ -201,12 +217,14 @@ async function main() {
       status: 'AKTIF',
     },
   });
+  console.log(`   ✅ Skema Pengabdian "${skemaPengabdian.nama}" dibuat (ID: ${skemaPengabdian.id})`);
 
+  // Perbaikan: Menggunakan kategori yang valid (PENELITIAN/PENGABDIAN)
   const skemaHibah = await prisma.skema.create({
     data: {
       kode: 'HIB-2025-001',
       nama: 'Hibah Penelitian Dosen Muda',
-      kategori: 'HIBAH_INTERNAL',
+      kategori: 'PENELITIAN', // Diperbaiki dari 'HIBAH_INTERNAL' menjadi kategori valid
       luaran_wajib: 'Artikel Jurnal Internasional, Produk/Prototype',
       dana_min: 5000000,
       dana_max: 25000000,
@@ -217,8 +235,11 @@ async function main() {
       status: 'AKTIF',
     },
   });
+  console.log(`   ✅ Skema Hibah "${skemaHibah.nama}" dibuat (ID: ${skemaHibah.id})`);
 
   // ==================== CREATE PROPOSALS ====================
+  console.log('📝 Membuat proposal...');
+  
   // Proposal oleh Dosen
   const proposalDosen = await prisma.proposal.create({
     data: {
@@ -232,8 +253,10 @@ async function main() {
       status: 'SUBMITTED',
       tanggal_submit: new Date(),
       reviewerId: reviewer1.id,
+      tanggal_review: new Date(), // Field yang ditambahkan
     },
   });
+  console.log(`   ✅ Proposal Dosen "${proposalDosen.judul}" dibuat (ID: ${proposalDosen.id})`);
 
   // Proposal oleh Mahasiswa
   const proposalMahasiswa = await prisma.proposal.create({
@@ -248,8 +271,10 @@ async function main() {
       status: 'REVIEW',
       tanggal_submit: new Date(),
       reviewerId: reviewer2.id,
+      tanggal_review: new Date(), // Field yang ditambahkan
     },
   });
+  console.log(`   ✅ Proposal Mahasiswa "${proposalMahasiswa.judul}" dibuat (ID: ${proposalMahasiswa.id})`);
 
   // Proposal Pengabdian
   const proposalPengabdian = await prisma.proposal.create({
@@ -264,8 +289,11 @@ async function main() {
       status: 'DRAFT',
     },
   });
+  console.log(`   ✅ Proposal Pengabdian "${proposalPengabdian.judul}" dibuat (ID: ${proposalPengabdian.id})`);
 
   // ==================== CREATE PROPOSAL MEMBERS ====================
+  console.log('👥 Membuat anggota proposal...');
+  
   // Anggota untuk proposal dosen
   await prisma.proposalMember.create({
     data: {
@@ -274,6 +302,7 @@ async function main() {
       peran: 'ANGGOTA',
     },
   });
+  console.log(`   ✅ Anggota proposal dosen: ${dosen2.nama}`);
 
   await prisma.proposalMember.create({
     data: {
@@ -282,6 +311,7 @@ async function main() {
       peran: 'ANGGOTA',
     },
   });
+  console.log(`   ✅ Anggota proposal dosen: ${mahasiswa1.nama}`);
 
   // Anggota untuk proposal mahasiswa
   await prisma.proposalMember.create({
@@ -291,8 +321,11 @@ async function main() {
       peran: 'ANGGOTA',
     },
   });
+  console.log(`   ✅ Anggota proposal mahasiswa: ${mahasiswa2.nama}`);
 
   // ==================== CREATE REVIEWS ====================
+  console.log('📝 Membuat review...');
+  
   const review1 = await prisma.review.create({
     data: {
       proposalId: proposalDosen.id,
@@ -303,6 +336,7 @@ async function main() {
       tanggal_review: new Date(),
     },
   });
+  console.log(`   ✅ Review untuk proposal dosen oleh ${reviewer1.nama}`);
 
   const review2 = await prisma.review.create({
     data: {
@@ -314,8 +348,11 @@ async function main() {
       tanggal_review: new Date(),
     },
   });
+  console.log(`   ✅ Review untuk proposal mahasiswa oleh ${reviewer2.nama}`);
 
   // ==================== CREATE PENGUMUMAN ====================
+  console.log('📢 Membuat pengumuman...');
+  
   await prisma.pengumuman.create({
     data: {
       judul: 'Pembukaan Pendaftaran Skema Penelitian 2025',
@@ -333,8 +370,11 @@ async function main() {
       status: 'AKTIF',
     },
   });
+  console.log('   ✅ 2 Pengumuman berhasil dibuat');
 
   // ==================== CREATE DOCUMENTS ====================
+  console.log('📄 Membuat dokumen...');
+  
   await prisma.document.create({
     data: {
       name: 'Proposal_ML_Tanaman.pdf',
@@ -350,8 +390,10 @@ async function main() {
       proposalId: proposalMahasiswa.id,
     },
   });
+  console.log('   ✅ 2 Dokumen berhasil dibuat');
 
-  console.log('✅ Seed data berhasil dimasukkan');
+  // ==================== SUMMARY ====================
+  console.log('\n🎉 Seed data berhasil dimasukkan');
   console.log('📊 Data yang berhasil dibuat:');
   console.log(`   - ${await prisma.jurusan.count()} Jurusan`);
   console.log(`   - ${await prisma.prodi.count()} Prodi`);
@@ -371,5 +413,5 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
-    console.log('🔌 Database connection closed');
+    console.log('🔌 Koneksi database ditutup');
   });

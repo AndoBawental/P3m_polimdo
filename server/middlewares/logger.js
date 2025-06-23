@@ -1,6 +1,7 @@
 const winston = require('winston');
 const DailyRotateFile = require('winston-daily-rotate-file');
 const path = require('path');
+const fs = require('fs');
 
 // Log levels
 const LOG_LEVELS = {
@@ -10,14 +11,13 @@ const LOG_LEVELS = {
   DEBUG: 'debug'
 };
 
-const fs = require('fs');
+// Create logs directory if it doesn't exist
+const logsDir = path.join(__dirname, '../../logs');
+
+// Pastikan direktori logs ada sebelum membuat logger
 if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
 }
-
-
-// Create logs directory if it doesn't exist
-const logsDir = path.join(__dirname, '../../logs');
 
 // Winston formatters
 const { combine, timestamp, printf, errors } = winston.format;
@@ -35,8 +35,23 @@ const logFormat = printf(({ level, message, timestamp, stack, ...meta }) => {
     baseLog.stack = stack;
   }
 
-  if (Object.keys(meta).length > 0) {
-    baseLog.meta = meta;
+  // Handle special meta properties
+  const { method, url, statusCode, duration, ip, userAgent, ...otherMeta } = meta;
+  const finalMeta = {};
+  
+  if (method) finalMeta.method = method;
+  if (url) finalMeta.url = url;
+  if (statusCode) finalMeta.statusCode = statusCode;
+  if (duration) finalMeta.duration = duration;
+  if (ip) finalMeta.ip = ip;
+  if (userAgent) finalMeta.userAgent = userAgent;
+  
+  if (Object.keys(otherMeta).length > 0) {
+    finalMeta.details = otherMeta;
+  }
+
+  if (Object.keys(finalMeta).length > 0) {
+    baseLog.meta = finalMeta;
   }
 
   return JSON.stringify(baseLog);
@@ -56,12 +71,21 @@ const logger = winston.createLogger({
     logFormat
   ),
   transports: [
-    // Console transport (development only)
+    // Console transport
     new winston.transports.Console({
-      level: 'debug',
+      level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
       format: winston.format.combine(
         winston.format.colorize(),
-        winston.format.simple()
+        winston.format.printf(info => {
+          const { timestamp, level, message, ...meta } = info;
+          let log = `${timestamp} [${level}]: ${message}`;
+          
+          if (Object.keys(meta).length > 0) {
+            log += `\n${JSON.stringify(meta, null, 2)}`;
+          }
+          
+          return log;
+        })
       )
     }),
 
@@ -71,7 +95,7 @@ const logger = winston.createLogger({
       filename: path.join(logsDir, 'application-%DATE%.log'),
       datePattern: 'YYYY-MM-DD',
       zippedArchive: true,
-      maxSize: '20m',
+      maxSize: '50m',
       maxFiles: '30d'
     }),
 
@@ -81,7 +105,7 @@ const logger = winston.createLogger({
       filename: path.join(logsDir, 'error-%DATE%.log'),
       datePattern: 'YYYY-MM-DD',
       zippedArchive: true,
-      maxSize: '20m',
+      maxSize: '50m',
       maxFiles: '90d'
     })
   ],
@@ -90,16 +114,17 @@ const logger = winston.createLogger({
       filename: path.join(logsDir, 'exceptions-%DATE%.log'),
       datePattern: 'YYYY-MM-DD',
       zippedArchive: true,
-      maxSize: '20m',
+      maxSize: '50m',
       maxFiles: '30d'
+    }),
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+      )
     })
   ]
 });
-
-// Production environment settings
-if (process.env.NODE_ENV === 'production') {
-  logger.transports[0].level = 'info'; // Set console to info in prod
-}
 
 // HTTP request logger middleware
 const requestLogger = (req, res, next) => {
@@ -107,6 +132,11 @@ const requestLogger = (req, res, next) => {
   
   // Capture user ID if available
   const userId = req.user?.id || null;
+
+  // Skip logging for health checks and OPTIONS requests
+  if (req.originalUrl.includes('/health') || req.method === 'OPTIONS') {
+    return next();
+  }
 
   // Log request
   logger.info('HTTP Request', {
@@ -121,7 +151,16 @@ const requestLogger = (req, res, next) => {
   res.on('finish', () => {
     const duration = Date.now() - start;
     
-    logger.info('HTTP Response', {
+    // Skip logging for successful health checks
+    if (req.originalUrl.includes('/health') && res.statusCode === 200) {
+      return;
+    }
+    
+    // Determine log level based on status code
+    const level = res.statusCode >= 500 ? 'error' : 
+                 res.statusCode >= 400 ? 'warn' : 'info';
+    
+    logger.log(level, 'HTTP Response', {
       method: req.method,
       url: req.originalUrl,
       statusCode: res.statusCode,
@@ -133,9 +172,20 @@ const requestLogger = (req, res, next) => {
   next();
 };
 
+// Utility function for logging database queries
+const queryLogger = (query) => {
+  logger.debug('Database Query', {
+    model: query.model,
+    action: query.action,
+    duration: `${query.duration}ms`,
+    query: query.query
+  });
+};
+
 // Export logger instance directly
 module.exports = {
   logger,
   requestLogger,
+  queryLogger,
   LOG_LEVELS
 };

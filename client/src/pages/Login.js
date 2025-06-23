@@ -55,13 +55,13 @@ const FeatureCard = ({ icon, title, description, delay = 0 }) => (
     initial={{ opacity: 0, x: -20 }}
     animate={{ opacity: 1, x: 0 }}
     transition={{ delay, duration: 0.6 }}
-    className="flex items-start space-x-4 p-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20"
+    className="flex items-start space-x-4 p-6 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/15 transition-all duration-300"
   >
-    <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+    <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center">
       {icon}
     </div>
-    <div>
-      <h3 className="font-semibold text-white text-lg">{title}</h3>
+    <div className="flex-1">
+      <h3 className="font-semibold text-white text-lg mb-2">{title}</h3>
       <p className="text-blue-100 text-sm leading-relaxed">{description}</p>
     </div>
   </motion.div>
@@ -88,38 +88,29 @@ const Login = () => {
         <div className="w-full lg:w-3/5 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 relative">
           <FloatingElements />
           
-          <div className="relative z-10 p-8 lg:p-12 h-full flex flex-col justify-between min-h-[600px]">
+          <div className="relative z-10 p-8 lg:p-12 h-full flex flex-col justify-between min-h-[700px]">
             
-            {/* Header with Logo */}
+            {/* Header */}
             <motion.div 
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, ease: "easeOut" }}
-              className="flex flex-col items-center lg:items-start"
+              className="text-center lg:text-left"
             >
-              <div className="flex items-center space-x-4 mb-6">
-                <img 
-                  src="/logo polimdo.png" 
-                  alt="P3M Polimdo Logo" 
-                  className="w-16 h-16 object-contain"
-                />
-                <div>
-                  <h1 className="text-3xl lg:text-4xl font-bold text-white">
-                    P3M Polimdo
-                  </h1>
-                  <p className="text-blue-100 text-lg font-medium">
-                    Sistem Penelitian, Pengabdian & Publikasi
-                  </p>
-                </div>
-              </div>
+              <h1 className="text-4xl lg:text-5xl font-bold text-white mb-4 leading-tight">
+                P3M Polimdo
+              </h1>
+              <h2 className="text-xl lg:text-2xl font-medium text-blue-100 mb-6">
+                Sistem Penelitian, Pengabdian & Publikasi
+              </h2>
               
-              <p className="text-blue-100 text-center lg:text-left max-w-md leading-relaxed">
+              <p className="text-blue-100 text-lg leading-relaxed max-w-2xl">
                 Platform terintegrasi untuk mengelola seluruh aktivitas penelitian, 
                 pengabdian masyarakat, dan publikasi ilmiah di Politeknik Negeri Manado.
               </p>
             </motion.div>
             
-            {/* Central Illustration */}
+            {/* Central Illustration with Logo */}
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -129,20 +120,25 @@ const Login = () => {
               <div className="relative">
                 <div className="w-80 h-80 bg-gradient-to-br from-white/20 to-white/5 rounded-3xl backdrop-blur-sm border border-white/20 flex items-center justify-center">
                   <div className="text-center">
-                    <div className="w-32 h-32 mx-auto mb-6 bg-white/20 rounded-2xl flex items-center justify-center">
-                      <svg className="w-16 h-16 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                      </svg>
+                    {/* Logo positioned here */}
+                    <div className="w-24 h-24 mx-auto mb-6 bg-white/90 rounded-2xl flex items-center justify-center p-3 shadow-lg">
+                      <img 
+                        src="/logo polimdo.png" 
+                        alt="P3M Polimdo Logo" 
+                        className="w-full h-full object-contain"
+                      />
                     </div>
-                    <h3 className="text-xl font-semibold text-white mb-2">
-                      Kelola Penelitian Anda
+                    <h3 className="text-2xl font-bold text-white mb-3">
+                        Sistem Terpadu P3M
                     </h3>
-                    <p className="text-blue-100 text-sm">
-                      Sistem yang memudahkan proses penelitian dari proposal hingga publikasi
+                    <p className="text-blue-100 text-base leading-relaxed px-6">
+                      Sistem yang memudahkan proses penelitian & pengabdian dari proposal hingga publikasi
                     </p>
                   </div>
                 </div>
                 
+                {/* Decorative elements */}
+               
                 {/* Decorative elements */}
                 <motion.div 
                   className="absolute -top-4 -right-4 w-20 h-20 bg-blue-400/30 rounded-full"
@@ -158,53 +154,78 @@ const Login = () => {
             </motion.div>
             
             {/* Features */}
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FeatureCard
                 delay={0.8}
                 icon={
-                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                   </svg>
                 }
-                title="Keamanan Tingkat Tinggi"
-                description="Data penelitian Anda dilindungi dengan enkripsi end-to-end dan sistem backup otomatis"
+                title="Proposal Digital"
+                description="Ajukan proposal penelitian atau pengabdian secara online dengan template terstandar"
               />
               
               <FeatureCard
                 delay={1.0}
                 icon={
-                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
                   </svg>
                 }
-                title="Proses Terintegrasi"
-                description="Kelola proposal, pelaksanaan, hingga publikasi dalam satu platform yang efisien"
+                title="Monitoring Real-time"
+                description="Pantau perkembangan penelitian/pengabdian secara real-time"
+              />
+
+              <FeatureCard
+                delay={1.2}
+                icon={
+                  <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                }
+                title="Keamanan Data"
+                description="Sistem keamanan berlapis untuk melindungi data penelitian Anda"
+              />
+
+              <FeatureCard
+                delay={1.4}
+                icon={
+                  <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                }
+                title="Laporan Otomatis"
+                description="Generate laporan kemajuan dan akhir secara otomatis"
               />
             </div>
           </div>
         </div>
         
         {/* Right Panel - Login Form */}
-        <div className="w-full lg:w-2/5 p-6 sm:p-8 lg:p-12 flex flex-col justify-center">
+        <div className="w-full lg:w-2/5 p-6 sm:p-8 lg:p-12 flex flex-col justify-center bg-gray-50/50">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
+            className="max-w-md mx-auto w-full"
           >
             {/* Form Header */}
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl mb-6">
+            <div className="text-center mb-10">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl mb-6 shadow-lg">
                 <svg className="w-10 h-10 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
                 </svg>
               </div>
               
-              <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-3">
+              <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4 leading-tight">
                 Selamat Datang
               </h1>
               <p className="text-gray-600 text-lg leading-relaxed">
-                Masuk ke akun Anda untuk mengakses <br />
-                <span className="font-semibold text-blue-600">P3M Polimdo</span>
+                Masuk ke akun Anda untuk mengakses
+              </p>
+              <p className="font-semibold text-blue-600 text-lg">
+                P3M Polimdo
               </p>
             </div>
             
@@ -213,6 +234,7 @@ const Login = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3, duration: 0.6 }}
+              className="bg-white p-8 rounded-2xl shadow-lg border border-gray-100"
             >
               <LoginForm />
             </motion.div>
@@ -223,18 +245,18 @@ const Login = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6, duration: 0.6 }}
-            className="mt-12 pt-8 border-t border-gray-100"
+            className="mt-10 pt-8 border-t border-gray-200"
           >
             <div className="text-center">
-              <p className="text-gray-500 mb-4">
+              <p className="text-gray-500 text-sm mb-6">
                 © {new Date().getFullYear()} P3M Polimdo. Hak Cipta Dilindungi.
               </p>
               
               {/* Social Links */}
-              <div className="flex justify-center space-x-4">
+              <div className="flex justify-center space-x-6">
                 <motion.a 
                   href="#" 
-                  className="p-2 text-gray-400 hover:text-blue-600 transition-colors duration-200"
+                  className="p-3 text-gray-400 hover:text-blue-600 transition-colors duration-200 bg-white rounded-full shadow-sm hover:shadow-md"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.95 }}
                 >
@@ -245,7 +267,7 @@ const Login = () => {
                 
                 <motion.a 
                   href="#" 
-                  className="p-2 text-gray-400 hover:text-blue-600 transition-colors duration-200"
+                  className="p-3 text-gray-400 hover:text-blue-600 transition-colors duration-200 bg-white rounded-full shadow-sm hover:shadow-md"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.95 }}
                 >
@@ -256,7 +278,7 @@ const Login = () => {
                 
                 <motion.a 
                   href="#" 
-                  className="p-2 text-gray-400 hover:text-blue-600 transition-colors duration-200"
+                  className="p-3 text-gray-400 hover:text-blue-600 transition-colors duration-200 bg-white rounded-full shadow-sm hover:shadow-md"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.95 }}
                 >

@@ -1,10 +1,9 @@
-// pages/Dashboard/ReviewerDashboard.js
+// src/pages/Dashboard/ReviewerDashboard.js
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import dashboardService from '../../services/dashboardService';
-import reviewService from '../../services/reviewService';
 import StatsCard from '../../components/Dashboard/StatsCard';
-import RecentItems from '../../components/Dashboard/RecentItems';
 import Loading from '../../components/Common/Loading';
 import StatusBadge from '../../components/Common/StatusBadge';
 
@@ -75,23 +74,23 @@ const ReviewerDashboard = () => {
     {
       title: 'Total Penugasan',
       value: stats.totalAssignments,
-      color: 'blue',
       icon: '📋',
-      gradient: 'from-blue-500 to-blue-600'
+      color: 'blue',
+      gradient: 'from-blue-500 to-blue-600',
     },
     {
       title: 'Review Pending',
       value: stats.pendingReviews,
-      color: 'amber',
       icon: '⏳',
-      gradient: 'from-amber-500 to-amber-600'
+      color: 'amber',
+      gradient: 'from-amber-500 to-amber-600',
     },
     {
       title: 'Review Selesai',
       value: stats.completedReviews,
-      color: 'green',
       icon: '✅',
-      gradient: 'from-green-500 to-green-600'
+      color: 'green',
+      gradient: 'from-green-500 to-green-600',
     }
   ];
 
@@ -103,23 +102,107 @@ const ReviewerDashboard = () => {
     );
   }
 
+  // Animasi container
+  const container = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  // Animasi item
+  const item = {
+    hidden: { y: 20, opacity: 0 },
+    show: { 
+      y: 0, 
+      opacity: 1,
+      transition: { 
+        type: "spring", 
+        stiffness: 120, 
+        damping: 14 
+      }
+    }
+  };
+
+  // Animasi float
+  const floating = {
+    float: {
+      y: [0, -10, 0],
+      transition: {
+        duration: 3,
+        repeat: Infinity,
+        ease: "easeInOut"
+      }
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+    <motion.div 
+      className="min-h-screen bg-gradient-to-b from-gray-50 to-blue-50 py-8"
+      variants={container}
+      initial="hidden"
+      animate="show"
+    >
+      {/* Floating elements */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <motion.div 
+          className="absolute top-20 left-10 w-16 h-16 bg-blue-200 rounded-full opacity-10"
+          variants={floating}
+          animate="float"
+        ></motion.div>
+        <motion.div 
+          className="absolute top-1/3 right-20 w-24 h-24 bg-indigo-200 rounded-full opacity-10"
+          variants={floating}
+          animate="float"
+          transition={{ delay: 0.5 }}
+        ></motion.div>
+        <motion.div 
+          className="absolute bottom-40 left-1/4 w-20 h-20 bg-green-200 rounded-full opacity-10"
+          variants={floating}
+          animate="float"
+          transition={{ delay: 1 }}
+        ></motion.div>
+        <motion.div 
+          className="absolute bottom-20 right-1/3 w-12 h-12 bg-amber-200 rounded-full opacity-10"
+          variants={floating}
+          animate="float"
+          transition={{ delay: 1.5 }}
+        ></motion.div>
+      </div>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header Section */}
-        <div className="mb-8">
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl shadow-xl p-6 text-white">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        <motion.div 
+          className="mb-8"
+          variants={item}
+        >
+          <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl shadow-xl p-6 text-white overflow-hidden">
+            {/* Background elements */}
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-white bg-opacity-10 rounded-full"></div>
+            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-white bg-opacity-10 rounded-full"></div>
+            
+            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center">
-                <div className="bg-white bg-opacity-20 p-3 rounded-xl mr-4">
+                <motion.div 
+                  className="bg-white bg-opacity-20 p-3 rounded-xl mr-4 backdrop-blur-sm"
+                  whileHover={{ rotate: 10 }}
+                >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                </div>
+                </motion.div>
                 <div>
-                  <h1 className="text-2xl md:text-3xl font-bold mb-2">
+                  <motion.h1 
+                    className="text-2xl md:text-3xl font-bold mb-2"
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                  >
                     Dashboard Reviewer
-                  </h1>
+                  </motion.h1>
                   <p className="text-blue-100">
                     Selamat datang, <span className="font-semibold">{user?.nama || 'Reviewer'}</span>! 
                     <span className="ml-2">
@@ -134,19 +217,25 @@ const ReviewerDashboard = () => {
                 </div>
               </div>
               <div className="mt-4 sm:mt-0">
-                <div className="bg-white bg-opacity-20 backdrop-blur-sm rounded-xl px-4 py-2 border border-white border-opacity-30">
+                <motion.div 
+                  className="bg-white bg-opacity-20 backdrop-blur-sm rounded-xl px-4 py-2 border border-white border-opacity-30"
+                  whileHover={{ scale: 1.03 }}
+                >
                   <span className="text-white text-sm font-medium">
                     Status: Reviewer Aktif
                   </span>
-                </div>
+                </motion.div>
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Error Handling */}
         {error && (
-          <div className="mb-6 bg-gradient-to-r from-red-50 to-orange-50 rounded-xl p-4 border border-red-100 shadow-sm">
+          <motion.div 
+            className="mb-6 bg-gradient-to-r from-red-50 to-orange-50 rounded-xl p-4 border border-red-100 shadow-sm"
+            variants={item}
+          >
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
@@ -165,27 +254,41 @@ const ReviewerDashboard = () => {
                 </button>
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <motion.div 
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
+          variants={container}
+        >
           {statsConfig.map((stat, index) => (
-            <StatsCard
-              key={index}
-              title={stat.title}
-              value={stat.value}
-              color={stat.color}
-              icon={stat.icon}
-              gradient={stat.gradient}
-            />
+            <motion.div 
+              key={index} 
+              variants={item}
+              whileHover={{ scale: 1.03 }}
+            >
+              <StatsCard
+                title={stat.title}
+                value={stat.value}
+                color={stat.color}
+                icon={stat.icon}
+                gradient={stat.gradient}
+              />
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <motion.div 
+          className="grid grid-cols-1 lg:grid-cols-2 gap-8"
+          variants={container}
+        >
           {/* Recent Reviews Section */}
-          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+          <motion.div 
+            className="bg-white rounded-2xl shadow-lg overflow-hidden"
+            variants={item}
+          >
             <div className="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-100">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-bold text-gray-900 flex items-center">
@@ -194,15 +297,16 @@ const ReviewerDashboard = () => {
                   </svg>
                   Review Saya
                 </h3>
-                <button
+                <motion.button
                   onClick={handleViewAllReviews}
-                  className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors flex items-center"
+                  className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors flex items-center group"
+                  whileHover={{ x: 5 }}
                 >
                   Lihat Semua
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
-                </button>
+                </motion.button>
               </div>
             </div>
             
@@ -210,70 +314,81 @@ const ReviewerDashboard = () => {
               {recentReviews.length > 0 ? (
                 <div className="space-y-4">
                   {recentReviews.map((review) => (
-                    <div 
+                    <motion.div 
                       key={review.id}
-                      className="border border-gray-100 rounded-xl p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:border-blue-100"
+                      className="border border-gray-100 rounded-xl p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:border-blue-100 overflow-hidden"
                       onClick={() => handleViewReview(review.id)}
+                      whileHover={{ y: -5 }}
                     >
                       <div className="flex items-start">
-                        <div className="bg-blue-50 p-2 rounded-lg mr-3">
+                        <div className="bg-blue-50 p-2 rounded-lg mr-3 flex-shrink-0">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                           </svg>
                         </div>
-                        <div className="flex-1">
+                        <div className="min-w-0 flex-1">
                           <h4 className="font-bold text-gray-900 mb-1 truncate">
                             {review.proposal?.judul || 'Judul Tidak Tersedia'}
                           </h4>
-                          <p className="text-sm text-gray-600 mb-2">
+                          <p className="text-sm text-gray-600 mb-2 truncate">
                             Peneliti: {review.proposal?.ketua?.nama || 'Tidak Diketahui'}
                           </p>
                           <div className="flex items-center justify-between">
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-500 whitespace-nowrap">
                               {new Date(review.tanggal_review).toLocaleDateString('id-ID', {
                                 day: 'numeric',
                                 month: 'short',
                                 year: 'numeric'
                               })}
                             </div>
-                            <StatusBadge 
-                              status={review.rekomendasi}
-                              className="text-xs"
-                            />
+                            <div className="flex-shrink-0">
+                              <StatusBadge 
+                                status={review.rekomendasi}
+                                className="text-xs"
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <div className="flex justify-center mb-4">
+                  <motion.div 
+                    className="flex justify-center mb-4"
+                    whileHover={{ scale: 1.1 }}
+                  >
                     <div className="bg-blue-100 p-4 rounded-full">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                     </div>
-                  </div>
+                  </motion.div>
                   <h4 className="text-lg font-bold text-gray-900 mb-2">
                     Tidak ada penugasan review
                   </h4>
-                  <p className="text-gray-500 max-w-md mx-auto">
+                  <p className="text-gray-500 max-w-md mx-auto mb-4">
                     Anda akan menerima notifikasi ketika ada penugasan baru
                   </p>
-                  <button
+                  <motion.button
                     onClick={handleViewAllReviews}
-                    className="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                   >
                     Lihat Semua Review
-                  </button>
+                  </motion.button>
                 </div>
               )}
             </div>
-          </div>
+          </motion.div>
 
           {/* Announcements Section */}
-          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+          <motion.div 
+            className="bg-white rounded-2xl shadow-lg overflow-hidden"
+            variants={item}
+          >
             <div className="px-6 py-4 bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-gray-100">
               <h3 className="text-lg font-bold text-gray-900 flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -287,9 +402,10 @@ const ReviewerDashboard = () => {
               {announcements.length > 0 ? (
                 <div className="space-y-4">
                   {announcements.map((announcement, index) => (
-                    <div 
+                    <motion.div 
                       key={announcement.id || index} 
                       className="border border-gray-100 rounded-xl p-4 hover:shadow-md transition-all duration-200"
+                      whileHover={{ y: -5 }}
                     >
                       <div className="flex items-start">
                         <div className={`flex-shrink-0 mt-1 mr-3 ${
@@ -301,15 +417,15 @@ const ReviewerDashboard = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                           </svg>
                         </div>
-                        <div className="flex-1">
-                          <h4 className="font-bold text-gray-900 mb-1">
+                        <div className="min-w-0">
+                          <h4 className="font-bold text-gray-900 mb-1 truncate">
                             {announcement.judul}
                           </h4>
-                          <p className="text-sm text-gray-600 mb-2">
+                          <p className="text-sm text-gray-600 mb-2 line-clamp-2">
                             {announcement.konten}
                           </p>
                           <div className="flex items-center justify-between">
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-gray-500 whitespace-nowrap">
                               {new Date(announcement.createdAt).toLocaleDateString('id-ID', {
                                 day: 'numeric',
                                 month: 'long',
@@ -317,26 +433,31 @@ const ReviewerDashboard = () => {
                               })}
                             </p>
                             {announcement.status && (
-                              <StatusBadge 
-                                status={announcement.status}
-                                className="text-xs"
-                              />
+                              <div className="flex-shrink-0">
+                                <StatusBadge 
+                                  status={announcement.status}
+                                  className="text-xs"
+                                />
+                              </div>
                             )}
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <div className="flex justify-center mb-4">
+                  <motion.div 
+                    className="flex justify-center mb-4"
+                    whileHover={{ scale: 1.1 }}
+                  >
                     <div className="bg-indigo-100 p-4 rounded-full">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
                       </svg>
                     </div>
-                  </div>
+                  </motion.div>
                   <h4 className="text-lg font-bold text-gray-900 mb-2">
                     Tidak ada pengumuman
                   </h4>
@@ -346,11 +467,14 @@ const ReviewerDashboard = () => {
                 </div>
               )}
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
 
         {/* Tips & Guidelines Section */}
-        <div className="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100 shadow-sm">
+        <motion.div 
+          className="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100 shadow-sm"
+          variants={item}
+        >
           <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
@@ -358,10 +482,14 @@ const ReviewerDashboard = () => {
             Panduan Review untuk Reviewer
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <motion.div 
+              className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all"
+              variants={item}
+              whileHover={{ y: -5 }}
+            >
               <div className="flex items-start space-x-3">
                 <div className="bg-blue-100 p-2 rounded-lg">
-                  <span className="text-blue-600">📝</span>
+                  <span className="text-blue-600 text-lg">📝</span>
                 </div>
                 <div>
                   <h4 className="font-bold text-gray-900 mb-1">Kualitas Review</h4>
@@ -370,12 +498,16 @@ const ReviewerDashboard = () => {
                   </p>
                 </div>
               </div>
-            </div>
+            </motion.div>
             
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <motion.div 
+              className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all"
+              variants={item}
+              whileHover={{ y: -5 }}
+            >
               <div className="flex items-start space-x-3">
                 <div className="bg-amber-100 p-2 rounded-lg">
-                  <span className="text-amber-600">⏰</span>
+                  <span className="text-amber-600 text-lg">⏰</span>
                 </div>
                 <div>
                   <h4 className="font-bold text-gray-900 mb-1">Tepat Waktu</h4>
@@ -384,12 +516,16 @@ const ReviewerDashboard = () => {
                   </p>
                 </div>
               </div>
-            </div>
+            </motion.div>
             
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <motion.div 
+              className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all"
+              variants={item}
+              whileHover={{ y: -5 }}
+            >
               <div className="flex items-start space-x-3">
                 <div className="bg-green-100 p-2 rounded-lg">
-                  <span className="text-green-600">📊</span>
+                  <span className="text-green-600 text-lg">📊</span>
                 </div>
                 <div>
                   <h4 className="font-bold text-gray-900 mb-1">Skor & Rekomendasi</h4>
@@ -398,12 +534,16 @@ const ReviewerDashboard = () => {
                   </p>
                 </div>
               </div>
-            </div>
+            </motion.div>
             
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <motion.div 
+              className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all"
+              variants={item}
+              whileHover={{ y: -5 }}
+            >
               <div className="flex items-start space-x-3">
                 <div className="bg-purple-100 p-2 rounded-lg">
-                  <span className="text-purple-600">💬</span>
+                  <span className="text-purple-600 text-lg">💬</span>
                 </div>
                 <div>
                   <h4 className="font-bold text-gray-900 mb-1">Catatan Konstruktif</h4>
@@ -412,12 +552,15 @@ const ReviewerDashboard = () => {
                   </p>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Call to Action */}
-        <div className="mt-8 bg-gradient-to-r from-green-600 to-emerald-700 rounded-2xl p-6 text-white shadow-xl">
+        <motion.div 
+          className="mt-8 bg-gradient-to-r from-green-600 to-emerald-700 rounded-2xl p-6 text-white shadow-xl"
+          variants={item}
+        >
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="text-center md:text-left mb-4 md:mb-0">
               <h3 className="text-xl font-bold mb-2">Siap untuk memulai review?</h3>
@@ -425,16 +568,18 @@ const ReviewerDashboard = () => {
                 Akses semua penugasan review Anda dan berikan penilaian yang berkualitas
               </p>
             </div>
-            <button
+            <motion.button
               onClick={handleViewAllReviews}
               className="bg-white text-emerald-700 font-bold px-6 py-3 rounded-xl hover:bg-green-50 transition-colors shadow-lg"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               Lihat Penugasan Saya
-            </button>
+            </motion.button>
           </div>
-        </div>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

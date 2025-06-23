@@ -198,7 +198,7 @@ const ProposalList = () => {
             Proposal Penelitian
           </h1>
           <p className="text-gray-600 mt-1 max-w-xl">
-            Kelola dan pantau proposal penelitian Anda dengan mudah dan efisien
+            Kelola dan pantau proposal penelitian & Pengabdian Anda dengan mudah dan efisien
           </p>
         </div>
         {['DOSEN', 'MAHASISWA', 'ADMIN'].includes(user.role) && (
@@ -339,7 +339,7 @@ const ProposalList = () => {
           <p className="text-gray-600 max-w-md mx-auto mb-6">
             {filters.search || filters.status || filters.skema
               ? 'Tidak ada proposal yang sesuai dengan filter pencarian Anda. Coba ubah kriteria pencarian.'
-              : 'Mulai dengan membuat proposal penelitian baru.'}
+              : 'Mulai dengan membuat proposal penelitian atau Pengabdian baru.'}
           </p>
           {['DOSEN', 'MAHASISWA', 'ADMIN'].includes(user.role) && (
             <Link

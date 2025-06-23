@@ -1,25 +1,39 @@
-//server/routes/fileRoutes.js
 const express = require('express');
 const router = express.Router();
-const fileController = require('../controllers/file.controller');
-const { upload } = require('../middlewares/upload');
-const { authMiddleware } = require('../middlewares/auth');
+const { uploadSingle, handleUploadError } = require('../middlewares/upload');
+const { verifyToken } = require('../middlewares/auth');
+const {
+  uploadProposalDocument,
+  getProposalDocuments,
+  downloadFile,
+  deleteFile,
+  uploadGeneralFile
+} = require ('../controllers/file.controller');
 
-// Dapatkan dokumen berdasarkan proposal
-router.get('/proposal/:proposalId', authMiddleware, fileController.getByProposal);
+// Middleware auth untuk semua routes
+router.use(verifyToken);
 
-// Download dokumen
-router.get('/:id', authMiddleware, fileController.downloadDocument);
-
-// Hapus dokumen
-router.delete('/:id', authMiddleware, fileController.deleteDocument);
-
-// Upload dokumen
-router.post('/:proposalId', 
-  authMiddleware, 
-  upload.single('file'), 
-  fileController.uploadDocument
+// Upload dokumen untuk proposal
+router.post('/proposals/:proposalId/upload', 
+  uploadSingle('document'), 
+  handleUploadError, 
+  uploadProposalDocument
 );
 
+// Get dokumen by proposal ID
+router.get('/proposals/:proposalId/documents', getProposalDocuments);
+
+// Download file
+router.get('/download/:documentId', downloadFile);
+
+// Delete file
+router.delete('/documents/:documentId', deleteFile);
+
+// Upload general file
+router.post('/upload', 
+  uploadSingle('file'), 
+  handleUploadError, 
+  uploadGeneralFile
+);
 
 module.exports = router;

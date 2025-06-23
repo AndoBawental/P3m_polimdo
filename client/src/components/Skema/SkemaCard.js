@@ -9,6 +9,28 @@ const SkemaCard = ({ skema, showActions, onEdit, onDelete }) => {
     return new Date(dateString).toLocaleDateString('id-ID', options);
   };
 
+  // Hitung status yang akan ditampilkan
+  const now = new Date();
+  const tanggalTutup = skema.tanggal_tutup ? new Date(skema.tanggal_tutup) : null;
+  
+  let displayStatus = skema.status;
+  let statusClass = '';
+  let statusText = '';
+
+  if (skema.status === 'AKTIF' && tanggalTutup && tanggalTutup < now) {
+    displayStatus = 'KADALUARSA';
+    statusClass = 'bg-yellow-100 text-yellow-800';
+    statusText = 'Kadaluarsa';
+  } else {
+    if (skema.status === 'AKTIF') {
+      statusClass = 'bg-green-100 text-green-800';
+      statusText = 'Aktif';
+    } else {
+      statusClass = 'bg-red-100 text-red-800';
+      statusText = 'Non-Aktif';
+    }
+  }
+
   return (
     <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden transition-all hover:shadow-lg">
       <div className="p-5">
@@ -90,12 +112,8 @@ const SkemaCard = ({ skema, showActions, onEdit, onDelete }) => {
       {/* Status dan tanggal */}
       <div className="bg-gray-50 px-5 py-3 border-t border-gray-100">
         <div className="flex justify-between items-center">
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-            skema.status === 'AKTIF' 
-              ? 'bg-green-100 text-green-800' 
-              : 'bg-red-100 text-red-800'
-          }`}>
-            {skema.status}
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}`}>
+            {statusText}
           </span>
           <div className="text-xs text-gray-500 text-right">
             <div>Buka: {formatDate(skema.tanggal_buka)}</div>

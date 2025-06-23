@@ -17,6 +17,9 @@ import Profile from './pages/Users/Profile';
 // Dashboards
 import RoleBasedDashboard from './pages/Dashboard/RoleBasedDashboard';
 
+import Settings from './pages/Settings';
+import Help from './pages/Help';
+
 // Proposal Pages
 import ProposalsPage from './pages/Proposals';
 import CreateProposalPage from './pages/Proposals/Create';
@@ -57,6 +60,8 @@ function App() {
             {/* ✅ Public Routes - Harus didefinisikan PERTAMA dan TERPISAH */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+             <Route path="/settings" element={<Settings />} />
+                <Route path="/help" element={<Help />} />
             
             {/* ✅ Protected Routes with Layout - Gunakan path="/*" bukan path="/" */}
             <Route

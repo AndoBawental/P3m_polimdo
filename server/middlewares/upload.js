@@ -1,96 +1,112 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { sendError } = require('../utils/response');
 
-// Create directories if they don't exist
-const ensureDirectoryExists = (dirPath) => {
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-  }
+// Pastikan folder uploads ada
+const ensureUploadDirs = () => {
+  const uploadDirs = [
+    'uploads/',
+    'uploads/documents/',
+    'uploads/proposals/',
+    'uploads/reviews/',
+    'uploads/images/',
+    'uploads/pengumuman/',
+    'uploads/temp/'
+  ];
+
+  uploadDirs.forEach(dir => {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  });
 };
 
-// Main uploads directory
-const uploadsDir = path.join(__dirname, '..', 'uploads');
-ensureDirectoryExists(uploadsDir);
+// Jalankan saat server start
+ensureUploadDirs();
 
-// Permanent storage configuration
+// Konfigurasi storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Determine folder based on file type/context
-    let folder = 'documents/';
+    let uploadPath = 'uploads/documents/'; // default
     
-    if (file.fieldname === 'proposal') folder = 'proposals/';
-    else if (file.fieldname === 'review') folder = 'reviews/';
-    else if (file.fieldname.startsWith('image')) folder = 'images/';
+    // Tentukan folder berdasarkan jenis upload
+    if (req.originalUrl.includes('/proposals/')) {
+      uploadPath = 'uploads/proposals/';
+    } else if (req.originalUrl.includes('/reviews/')) {
+      uploadPath = 'uploads/reviews/';
+    } else if (req.originalUrl.includes('/pengumuman/')) {
+      uploadPath = 'uploads/pengumuman/';
+    }
     
-    const destPath = path.join(uploadsDir, folder);
-    ensureDirectoryExists(destPath);
-    
-    cb(null, destPath);
+    cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
+    // Generate unique filename
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    const sanitizedName = file.originalname.replace(ext, '').replace(/[^a-z0-9]/gi, '_').substring(0, 50);
-    cb(null, sanitizedName + '-' + uniqueSuffix + ext);
+    const extension = path.extname(file.originalname);
+    const filename = file.fieldname + '-' + uniqueSuffix + extension;
+    cb(null, filename);
   }
 });
 
-// File type validation
+// File filter untuk validasi tipe file
 const fileFilter = (req, file, cb) => {
+  // Allowed file types
   const allowedTypes = [
-    'application/pdf',                                      // PDF
-    'application/msword',                                   // DOC
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // DOCX
-    'application/vnd.ms-excel',                             // XLS
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // XLSX
-    'image/jpeg',                                           // JPEG
-    'image/png',                                            // PNG
-    'image/jpg'                                             // JPG
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'image/jpeg',
+    'image/png',
+    'image/jpg'
   ];
 
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error(`Jenis file tidak didukung. Ekstensi yang diizinkan: ${allowedTypes.map(t => t.split('/')[1]).join(', ')}`), false);
+    cb(new Error('Tipe file tidak diizinkan. Hanya PDF, DOC, DOCX, XLS, XLSX, JPG, JPEG, PNG yang diperbolehkan.'), false);
   }
 };
 
-// Configure multer instance
+// Konfigurasi multer
 const upload = multer({
   storage: storage,
-  fileFilter: fileFilter,
-  limits: { 
-    fileSize: 10 * 1024 * 1024, // 10MB
-    files: 5 // Max 5 files per upload
-  }
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB max file size
+  },
+  fileFilter: fileFilter
 });
 
-// Enhanced error handler
-const handleUploadError = (err, req, res, next) => {
-  if (err) {
-    if (err instanceof multer.MulterError) {
-      switch (err.code) {
-        case 'LIMIT_FILE_SIZE':
-          return sendError(res, 'Ukuran file terlalu besar. Maksimal 10MB per file', 413);
-        case 'LIMIT_FILE_COUNT':
-          return sendError(res, 'Terlalu banyak file. Maksimal 5 file per upload', 413);
-        case 'LIMIT_UNEXPECTED_FILE':
-          return sendError(res, 'Jenis field file tidak diharapkan', 400);
-        default:
-          return sendError(res, `Terjadi kesalahan upload: ${err.message}`, 400);
-      }
-    } else {
-      // Handle custom errors (like fileFilter errors)
-      return sendError(res, err.message, 400);
+// Middleware untuk single file upload
+const uploadSingle = (fieldName = 'file') => {
+  return upload.single(fieldName);
+};
+
+// Error handler untuk multer
+const handleUploadError = (error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        message: 'File terlalu besar. Maksimal 10MB.'
+      });
     }
   }
-  next();
+  
+  if (error.message.includes('Tipe file tidak diizinkan')) {
+    return res.status(400).json({
+      success: false,
+      message: error.message
+    });
+  }
+  
+  next(error);
 };
 
 module.exports = {
-  upload,
+  uploadSingle,
   handleUploadError,
-  uploadsDir // Export for use in controllers
+  ensureUploadDirs
 };

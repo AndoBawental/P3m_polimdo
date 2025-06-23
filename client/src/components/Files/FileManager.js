@@ -1,76 +1,96 @@
-// src/components/Files/FileManager.js
-
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import FileUpload from './FileUpload';
-import { getFiles, deleteFile } from '../../services/fileService';
+import DocumentList from './DocumentList';
+import AlertMessage from '../Common/AlertMessage';
 
-const FileManager = () => {
-  const [files, setFiles] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+const FileManager = ({ 
+  proposalId, 
+  title = "Dokumen Proposal",
+  allowUpload = true,
+  showTitle = true 
+}) => {
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [message, setMessage] = useState({ type: '', text: '' });
 
-  const fetchFiles = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await getFiles();
-      setFiles(data);
-    } catch (err) {
-      setError('Gagal memuat file');
-    } finally {
-      setLoading(false);
-    }
+  const handleUploadSuccess = (result) => {
+    setMessage({ 
+      type: 'success', 
+      text: 'File berhasil diupload!' 
+    });
+    // Trigger refresh document list
+    setRefreshTrigger(prev => prev + 1);
+    
+    // Auto hide message after 3 seconds
+    setTimeout(() => {
+      setMessage({ type: '', text: '' });
+    }, 3000);
   };
 
-  useEffect(() => {
-    fetchFiles();
-  }, []);
-
-  const handleDelete = async (id) => {
-    if (!window.confirm('Hapus file ini?')) return;
-
-    try {
-      await deleteFile(id);
-      setFiles((prev) => prev.filter((file) => file.id !== id));
-    } catch {
-      alert('Gagal menghapus file');
-    }
+  const handleUploadError = (error) => {
+    setMessage({ 
+      type: 'error', 
+      text: error.message || 'Gagal mengupload file' 
+    });
   };
 
-  const handleUploadSuccess = () => {
-    fetchFiles();
+  const handleDocumentDelete = () => {
+    setMessage({ 
+      type: 'success', 
+      text: 'Dokumen berhasil dihapus!' 
+    });
+    
+    // Auto hide message after 3 seconds
+    setTimeout(() => {
+      setMessage({ type: '', text: '' });
+    }, 3000);
   };
 
   return (
-    <div className="p-4 space-y-4">
-      <FileUpload onUpload={handleUploadSuccess} />
-
-      {loading && <p>Memuat file...</p>}
-      {error && <p className="text-red-600">{error}</p>}
-
-      {!loading && !error && (
-        <ul className="space-y-2">
-          {files.length === 0 && <p>Tidak ada file.</p>}
-          {files.map((file) => (
-            <li key={file.id} className="flex justify-between items-center border p-2 rounded">
-              <a
-                href={file.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 underline"
-              >
-                {file.name}
-              </a>
-              <button
-                onClick={() => handleDelete(file.id)}
-                className="text-red-600 hover:underline"
-              >
-                Hapus
-              </button>
-            </li>
-          ))}
-        </ul>
+    <div className="space-y-6">
+      {showTitle && (
+        <div className="border-b border-gray-200 pb-4">
+          <h3 className="text-lg font-medium text-gray-900">{title}</h3>
+          <p className="mt-1 text-sm text-gray-600">
+            Upload dan kelola dokumen yang terkait dengan proposal
+          </p>
+        </div>
       )}
+
+      {/* Alert Messages */}
+      {message.text && (
+        <AlertMessage
+          type={message.type}
+          message={message.text}
+          onClose={() => setMessage({ type: '', text: '' })}
+        />
+      )}
+
+      {/* File Upload Section */}
+      {allowUpload && (
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h4 className="text-md font-medium text-gray-900 mb-4">
+            Upload Dokumen Baru
+          </h4>
+          <FileUpload
+            proposalId={proposalId}
+            onUploadSuccess={handleUploadSuccess}
+            onUploadError={handleUploadError}
+            maxSize={10}
+          />
+        </div>
+      )}
+
+      {/* Document List Section */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <h4 className="text-md font-medium text-gray-900 mb-4">
+          Dokumen Tersimpan
+        </h4>
+        <DocumentList
+          proposalId={proposalId}
+          onDocumentDelete={handleDocumentDelete}
+          refreshTrigger={refreshTrigger}
+        />
+      </div>
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import proposalService from '../../services/proposalService';
 import skemaService from '../../services/skemaService';
@@ -6,12 +6,14 @@ import userService from '../../services/userService';
 import { useAuth } from '../../hooks/useAuth';
 import { formatCurrency } from '../../utils/formatUtils';
 import { formatDate } from '../../utils/dateUtils';
+import FileManager from '../Files/FileManager';
+import { getFromCache, setToCache } from '../../services/cacheService';
 
 const ProposalForm = ({ proposalId = null, initialData = null }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isEdit = !!proposalId;
-
+  
   // Form state
   const [formData, setFormData] = useState({
     judul: '',
@@ -30,68 +32,79 @@ const ProposalForm = ({ proposalId = null, initialData = null }) => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [loadingData, setLoadingData] = useState(isEdit);
+  const [showFileManager, setShowFileManager] = useState(false);
+  const [skemaLoading, setSkemaLoading] = useState(false);
 
-  // Load available skemas with useCallback
+  // Load available skemas with caching
   const loadSkemas = useCallback(async () => {
     try {
-      const result = await skemaService.getAllSkema();
-      if (result.success) {
-        // Tangani berbagai format respons
-        let skemaList = [];
+      setSkemaLoading(true);
+      const cacheKey = 'active-skemas-period';
+      const cachedData = getFromCache(cacheKey);
+      
+      if (cachedData) {
+        setSkemas(cachedData);
         
-        if (Array.isArray(result.data)) {
-          skemaList = result.data;
-        } else if (result.data?.items) {
-          skemaList = result.data.items;
-        } else if (result.data?.data) {
-          skemaList = result.data.data;
-        }
-        
-        setSkemas(skemaList);
-        
-        // Set filtered skemas based on initial data if editing
-        if (initialData && initialData.kategori) {
-          const filtered = skemaList.filter(skema => 
-            skema.kategori === initialData.kategori && 
-            skema.status === 'AKTIF' &&
-            (!skema.tanggal_tutup || new Date(skema.tanggal_tutup) > new Date())
+        if (formData.kategori) {
+          const filtered = cachedData.filter(skema => 
+            skema.kategori === formData.kategori
           );
           setFilteredSkemas(filtered);
         }
+        setSkemaLoading(false);
+        return;
+      }
+
+      // Gunakan getActiveSkema untuk mendapatkan skema aktif dan dalam periode
+      const result = await skemaService.getActiveSkema();
+      if (result.success) {
+        // Tambahkan status 'AKTIF' karena endpoint active tidak mengembalikan status
+        let skemaList = result.data.map(skema => ({
+          ...skema,
+          status: 'AKTIF'
+        }));
+
+        setToCache(cacheKey, skemaList, 5 * 60 * 1000); // Cache for 5 minutes
+        setSkemas(skemaList);
+        
+        if (formData.kategori) {
+          const filtered = skemaList.filter(skema => 
+            skema.kategori === formData.kategori
+          );
+          setFilteredSkemas(filtered);
+        }
+      } else {
+        setSkemas([]);
+        setFilteredSkemas([]);
       }
     } catch (err) {
       console.error('Gagal memuat skema:', err);
       setSkemas([]);
       setFilteredSkemas([]);
+    } finally {
+      setSkemaLoading(false);
     }
-  }, [initialData]);
+  }, [formData.kategori]);
 
-  // Load available users with useCallback
+  // Load available users with caching
   const loadUsers = useCallback(async () => {
     try {
-      console.log('Memulai pemuatan anggota tim...');
+      const cacheKey = `team-members-${user.id}`;
+      const cachedData = getFromCache(cacheKey);
+      
+      if (cachedData) {
+        setAvailableUsers(cachedData);
+        return;
+      }
+
       const result = await userService.getTeamMembers();
-      console.log('Hasil pemuatan anggota tim:', result);
       
       if (result.success) {
-        // Tangani berbagai format respons
-        let users = [];
-        
-        if (Array.isArray(result.data)) {
-          users = result.data;
-        } else if (result.data?.users) {
-          users = result.data.users;
-        } else if (result.data?.data) {
-          users = result.data.data;
-        }
-        
-        console.log('Anggota tim yang dimuat:', users);
-        
-        // Filter out current user
+        const users = result.data || [];
         const filtered = users.filter(u => u.id !== user.id);
+        setToCache(cacheKey, filtered, 10 * 60 * 1000); // Cache for 10 minutes
         setAvailableUsers(filtered);
       } else {
-        console.error('Gagal memuat team members:', result.error);
         setAvailableUsers([]);
       }
     } catch (err) {
@@ -103,25 +116,70 @@ const ProposalForm = ({ proposalId = null, initialData = null }) => {
   // Load initial data
   useEffect(() => {
     const fetchData = async () => {
-      await loadSkemas();
-      await loadUsers();
+      setLoadingData(true);
       
-      if (initialData) {
-        setFormData({
-          judul: initialData.judul || '',
-          abstrak: initialData.abstrak || '',
-          kata_kunci: initialData.kata_kunci || '',
-          kategori: initialData.kategori || '',
-          skemaId: initialData.skemaId?.toString() || '',
-          dana_diusulkan: initialData.dana_diusulkan || '',
-          anggota: initialData.members?.filter(m => m.peran === 'ANGGOTA').map(m => m.userId) || []
-        });
+      try {
+        await Promise.all([loadSkemas(), loadUsers()]);
+        
+        if (initialData) {
+          const newFormData = {
+            judul: initialData.judul || '',
+            abstrak: initialData.abstrak || '',
+            kata_kunci: initialData.kata_kunci || '',
+            kategori: initialData.kategori || '',
+            skemaId: initialData.skemaId?.toString() || '',
+            dana_diusulkan: initialData.dana_diusulkan || '',
+            anggota: initialData.members?.filter(m => m.peran === 'ANGGOTA').map(m => m.userId) || []
+          };
+          
+          setFormData(newFormData);
+          
+          // Cari skema yang sesuai setelah data dimuat
+          if (initialData.skemaId && skemas.length > 0) {
+            const selected = skemas.find(s => s.id.toString() === initialData.skemaId.toString());
+            if (selected) {
+              setSelectedSkema(selected);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading initial data:', error);
+      } finally {
         setLoadingData(false);
       }
     };
 
     fetchData();
   }, [initialData, loadSkemas, loadUsers]);
+
+  // Set selected skema when skemas are loaded (for edit mode)
+  useEffect(() => {
+    if (initialData && initialData.skemaId && skemas.length > 0) {
+      const selected = skemas.find(s => s.id.toString() === initialData.skemaId.toString());
+      if (selected) {
+        setSelectedSkema(selected);
+      }
+    }
+  }, [skemas, initialData]);
+
+  // Update filtered skemas when category changes
+  useEffect(() => {
+    if (formData.kategori && skemas.length > 0) {
+      const filtered = skemas.filter(skema => 
+        skema.kategori === formData.kategori
+      );
+      setFilteredSkemas(filtered);
+      
+      if (selectedSkema && selectedSkema.kategori !== formData.kategori) {
+        setSelectedSkema(null);
+        setFormData(prev => ({ ...prev, skemaId: '' }));
+      }
+    } else {
+      setFilteredSkemas([]);
+      setSelectedSkema(null);
+      setFormData(prev => ({ ...prev, skemaId: '' }));
+    }
+  }, [formData.kategori, skemas, selectedSkema]);
 
   // Handle input change
   const handleInputChange = (e) => {
@@ -137,21 +195,6 @@ const ProposalForm = ({ proposalId = null, initialData = null }) => {
         [name]: ''
       }));
     }
-    
-    // If kategori changes, update filtered skemas
-    if (name === 'kategori') {
-      const filtered = skemas.filter(skema => 
-        skema.kategori === value && 
-        skema.status === 'AKTIF' &&
-        (!skema.tanggal_tutup || new Date(skema.tanggal_tutup) > new Date())
-      );
-      setFilteredSkemas(filtered);
-      setFormData(prev => ({
-        ...prev,
-        skemaId: '' // Reset skema selection
-      }));
-      setSelectedSkema(null);
-    }
   };
 
   // Handle skema selection
@@ -162,14 +205,12 @@ const ProposalForm = ({ proposalId = null, initialData = null }) => {
       skemaId
     }));
     
-    // Find and set selected skema details
     const skema = filteredSkemas.find(s => s.id.toString() === skemaId);
     setSelectedSkema(skema || null);
   };
 
   // Handle member toggle
   const handleMemberToggle = (userId) => {
-    // Check if adding this member would exceed the limit
     if (selectedSkema && 
         !formData.anggota.includes(userId) && 
         formData.anggota.length >= selectedSkema.batas_anggota - 1) {
@@ -255,20 +296,29 @@ const ProposalForm = ({ proposalId = null, initialData = null }) => {
         anggota: formData.anggota
       };
 
-      console.log('Data yang dikirim:', submitData);
-
       const result = isEdit
         ? await proposalService.updateProposal(proposalId, submitData)
         : await proposalService.createProposal(submitData);
 
       if (result.success) {
-        navigate(`/proposals/${result.data.id}`);
+        setShowFileManager(true);
+        
+        if (!isEdit) {
+          navigate(`/proposals/edit/${result.data.id}`);
+          alert('Proposal berhasil dibuat! Silakan unggah dokumen pendukung.');
+        } else {
+          alert('Proposal berhasil diperbarui!');
+        }
       } else {
         alert(result.error || 'Terjadi kesalahan saat menyimpan proposal');
       }
     } catch (error) {
       console.error('Form submission error:', error);
-      alert('Terjadi kesalahan saat menyimpan proposal');
+      if (error.response?.status === 429) {
+        alert('Terlalu banyak permintaan. Silakan tunggu beberapa saat.');
+      } else {
+        alert('Terjadi kesalahan saat menyimpan proposal');
+      }
     } finally {
       setLoading(false);
     }
@@ -297,13 +347,15 @@ const ProposalForm = ({ proposalId = null, initialData = null }) => {
   };
 
   // Group users by role
-  const groupedUsers = availableUsers.reduce((acc, user) => {
-    if (!acc[user.role]) {
-      acc[user.role] = [];
-    }
-    acc[user.role].push(user);
-    return acc;
-  }, {});
+  const groupedUsers = useMemo(() => {
+    return availableUsers.reduce((acc, user) => {
+      if (!acc[user.role]) {
+        acc[user.role] = [];
+      }
+      acc[user.role].push(user);
+      return acc;
+    }, {});
+  }, [availableUsers]);
 
   // Loading state
   if (loadingData) {
@@ -360,17 +412,26 @@ const ProposalForm = ({ proposalId = null, initialData = null }) => {
                 name="skemaId"
                 value={formData.skemaId}
                 onChange={handleSkemaChange}
-                disabled={!formData.kategori}
+                disabled={!formData.kategori || skemaLoading}
                 className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                   errors.skemaId ? 'border-red-300' : 'border-gray-300'
                 } ${!formData.kategori ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               >
                 <option value="">Pilih Skema</option>
-                {filteredSkemas.map((skema) => (
-                  <option key={skema.id} value={skema.id}>
-                    {skema.nama} ({skema.tahun_aktif})
-                  </option>
-                ))}
+                
+                {skemaLoading ? (
+                  <option disabled>Memuat skema...</option>
+                ) : !formData.kategori ? (
+                  <option disabled>Pilih kategori terlebih dahulu</option>
+                ) : filteredSkemas.length === 0 ? (
+                  <option disabled>Tidak ada skema tersedia untuk kategori ini</option>
+                ) : (
+                  filteredSkemas.map((skema) => (
+                    <option key={skema.id} value={skema.id}>
+                      {skema.nama} ({skema.tahun_aktif})
+                    </option>
+                  ))
+                )}
               </select>
               {errors.skemaId && (
                 <p className="mt-1.5 text-sm text-red-600">{errors.skemaId}</p>
@@ -380,71 +441,115 @@ const ProposalForm = ({ proposalId = null, initialData = null }) => {
 
           {/* Skema Details */}
           {selectedSkema && (
-            <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
-              <h3 className="text-sm font-medium text-blue-800 mb-3">Detail Skema Terpilih</h3>
+            <div className="mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-blue-800 flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  Detail Skema Terpilih
+                </h3>
+                <span className={`text-xs px-2.5 py-1 rounded-full ${
+                  selectedSkema.status === 'AKTIF' 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {selectedSkema.status}
+                </span>
+              </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <div className="flex items-center mb-1">
-                    <span className="text-xs font-medium text-blue-700 mr-2">Kode:</span>
-                    <span className="text-sm">{selectedSkema.kode}</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Kolom Kiri */}
+                <div className="space-y-4">
+                  <div className="flex">
+                    <div className="w-1/3 text-sm font-medium text-blue-700">Kode</div>
+                    <div className="w-2/3 font-medium">{selectedSkema.kode}</div>
                   </div>
-                  <div className="flex items-center mb-1">
-                    <span className="text-xs font-medium text-blue-700 mr-2">Nama:</span>
-                    <span className="text-sm">{selectedSkema.nama}</span>
+                  
+                  <div className="flex">
+                    <div className="w-1/3 text-sm font-medium text-blue-700">Nama</div>
+                    <div className="w-2/3">{selectedSkema.nama}</div>
                   </div>
-                  <div className="flex items-center">
-                    <span className="text-xs font-medium text-blue-700 mr-2">Kategori:</span>
-                    <span className={`text-xs px-2 py-0.5 rounded ${
-                      selectedSkema.kategori === 'PENELITIAN' 
-                        ? 'bg-blue-100 text-blue-800' 
-                        : 'bg-purple-100 text-purple-800'
-                    }`}>
-                      {selectedSkema.kategori}
-                    </span>
+                  
+                  <div className="flex">
+                    <div className="w-1/3 text-sm font-medium text-blue-700">Kategori</div>
+                    <div className="w-2/3">
+                      <span className={`text-xs px-2 py-1 rounded ${
+                        selectedSkema.kategori === 'PENELITIAN' 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : 'bg-purple-100 text-purple-800'
+                      }`}>
+                        {selectedSkema.kategori}
+                      </span>
+                    </div>
+                    
                   </div>
+                  
+                 <div className="flex">
+  <div className="w-1/3 text-sm font-medium text-blue-700">Luaran Wajib</div>
+  <div className="w-2/3">
+    {selectedSkema.luaran_wajib && selectedSkema.luaran_wajib.trim() ? (
+      <div className="flex flex-wrap gap-1">
+        {selectedSkema.luaran_wajib.split(',').map((luaran, index) => (
+          <span 
+            key={index} 
+            className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mr-1 mb-1"
+          >
+            {luaran.trim()}
+          </span>
+        ))}
+      </div>
+    ) : (
+      <span className="text-sm text-gray-500 italic">Tidak ada luaran wajib</span>
+    )}
+  </div>
+</div>
                 </div>
                 
-                <div>
-                  <div className="flex items-center mb-1">
-                    <span className="text-xs font-medium text-blue-700 mr-2">Dana:</span>
-                    <span className="text-sm">
+                {/* Kolom Kanan */}
+                <div className="space-y-4">
+                  <div className="flex">
+                    <div className="w-1/3 text-sm font-medium text-blue-700">Dana</div>
+                    <div className="w-2/3">
                       {selectedSkema.dana_min 
                         ? `${formatCurrency(selectedSkema.dana_min)} - ${formatCurrency(selectedSkema.dana_max)}` 
-                        : 'Tidak ditentukan'}
-                    </span>
+                        : <span className="text-sm text-gray-500 italic">Tidak ditentukan</span>
+                      }
+                    </div>
                   </div>
-                  <div className="flex items-center mb-1">
-                    <span className="text-xs font-medium text-blue-700 mr-2">Batas Anggota:</span>
-                    <span className="text-sm">{selectedSkema.batas_anggota} orang</span>
+                  
+                  <div className="flex">
+                    <div className="w-1/3 text-sm font-medium text-blue-700">Batas Anggota</div>
+                    <div className="w-2/3">
+                      <span className="font-medium">{selectedSkema.batas_anggota} orang </span>
+                      <span className="text-xs text-gray-500">(termasuk ketua)</span>
+                    </div>
                   </div>
-                  <div className="flex items-center">
-                    <span className="text-xs font-medium text-blue-700 mr-2">Status:</span>
-                    <span className={`text-xs px-2 py-0.5 rounded ${
-                      selectedSkema.status === 'AKTIF' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {selectedSkema.status}
-                    </span>
+                  
+                  <div className="flex">
+                    <div className="w-1/3 text-sm font-medium text-blue-700">Periode</div>
+                    <div className="w-2/3">
+                      {selectedSkema.tanggal_buka 
+                        ? `${formatDate(selectedSkema.tanggal_buka)} - ${formatDate(selectedSkema.tanggal_tutup)}` 
+                        : <span className="text-sm text-gray-500 italic">Tidak ditentukan</span>
+                      }
+                    </div>
+                  </div>
+                  
+                  <div className="flex">
+                    <div className="w-1/3 text-sm font-medium text-blue-700">Tahun Aktif</div>
+                    <div className="w-2/3 font-medium">{selectedSkema.tahun_aktif}</div>
                   </div>
                 </div>
               </div>
               
-              <div className="mt-3">
-                <div className="flex items-center mb-1">
-                  <span className="text-xs font-medium text-blue-700 mr-2">Luaran Wajib:</span>
-                  <span className="text-sm">{selectedSkema.luaran_wajib || 'Tidak ditentukan'}</span>
-                </div>
-                
-                <div className="flex items-center">
-                  <span className="text-xs font-medium text-blue-700 mr-2">Periode:</span>
-                  <span className="text-sm">
-                    {selectedSkema.tanggal_buka 
-                      ? `${formatDate(selectedSkema.tanggal_buka)} - ${formatDate(selectedSkema.tanggal_tutup)}` 
-                      : 'Tidak ditentukan'}
-                  </span>
-                </div>
+              <div className="mt-5 pt-4 border-t border-blue-100 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                <p className="text-xs text-blue-600">
+                  Pastikan proposal Anda memenuhi semua persyaratan skema ini
+                </p>
               </div>
             </div>
           )}
@@ -554,7 +659,7 @@ const ProposalForm = ({ proposalId = null, initialData = null }) => {
                 Anggota Tim
                 {selectedSkema && (
                   <span className="text-xs font-normal text-gray-500 ml-1">
-                    (Maksimal {selectedSkema.batas_anggota - 1} anggota)
+                    (Maksimal {selectedSkema.batas_anggota - 1} anggota tambahan)
                   </span>
                 )}
               </label>
@@ -701,6 +806,17 @@ const ProposalForm = ({ proposalId = null, initialData = null }) => {
             </p>
           </div>
 
+          {/* File Manager Section */}
+          {(showFileManager || isEdit) && (
+            <div className="mb-8">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Dokumen Proposal</h2>
+              <FileManager 
+                proposalId={proposalId} 
+                allowUpload={true}
+              />
+            </div>
+          )}
+
           {/* Buttons */}
           <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t border-gray-200">
             <button
@@ -712,12 +828,8 @@ const ProposalForm = ({ proposalId = null, initialData = null }) => {
             </button>
             <button
               type="submit"
-              disabled={loading || (selectedSkema && selectedSkema.status !== 'AKTIF')}
-              className={`px-6 py-2.5 text-white rounded-lg disabled:opacity-70 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg font-medium flex items-center justify-center ${
-                selectedSkema && selectedSkema.status !== 'AKTIF'
-                  ? 'bg-gray-500 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800'
-              }`}
+              disabled={loading}
+              className="px-6 py-2.5 text-white rounded-lg disabled:opacity-70 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg font-medium flex items-center justify-center bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
             >
               {loading ? (
                 <>
@@ -727,8 +839,6 @@ const ProposalForm = ({ proposalId = null, initialData = null }) => {
                   </svg>
                   Menyimpan...
                 </>
-              ) : selectedSkema && selectedSkema.status !== 'AKTIF' ? (
-                'Skema Tidak Aktif'
               ) : isEdit ? (
                 'Perbarui Proposal'
               ) : (

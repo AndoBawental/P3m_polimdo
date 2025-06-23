@@ -1,423 +1,333 @@
-// server/controllers/skemaController.js
+//server/controllers/skema.controller.js
 const { PrismaClient } = require('@prisma/client');
+const { validationResult } = require('express-validator');
+const { successResponse, errorResponse } = require('../utils/response');
+
 const prisma = new PrismaClient();
-const { sendSuccess, sendError, sendPaginated } = require('../utils/response');
 
-// Fungsi bantu normalize input kategori ke enum Prisma
-function normalizeKategori(input) {
-  if (!input) return undefined;
-  const mapKategori = {
-    'penelitian': 'PENELITIAN',
-    'pengabdian': 'PENGABDIAN',
-    'semua kategori': undefined,
-  };
-  return mapKategori[input.toLowerCase()] || undefined;
-}
-
-// Fungsi bantu normalize input status ke enum Prisma
-function normalizeStatus(input) {
-  if (!input) return undefined;
-  const mapStatus = {
-    'aktif': 'AKTIF',
-    'nonaktif': 'NONAKTIF',
-    'semua status': undefined,
-  };
-  return mapStatus[input.toLowerCase()] || undefined;
-}
-
-class SkemaController {
-  // Get all skema with filters
-  async getAllSkema(req, res) {
-    try {
-      const { 
-        page = 1, 
-        limit = 10, 
-        kategori, 
-        status, 
-        search,
-        tahun_aktif 
-      } = req.query;
-
-      const skip = (parseInt(page) - 1) * parseInt(limit);
-      const take = parseInt(limit);
-
-      // Build where clause dinamis
-      const where = {};
-
-      // Normalisasi kategori dan status sesuai enum Prisma
-      const kategoriEnum = normalizeKategori(kategori);
-      if (kategoriEnum) {
-        where.kategori = kategoriEnum;
-      }
-
-      const statusEnum = normalizeStatus(status);
-      if (statusEnum) {
-        where.status = statusEnum;
-      }
-
-      if (tahun_aktif) {
-        where.tahun_aktif = tahun_aktif;
-      }
-
-      if (search) {
-        where.OR = [
-          { nama: { contains: search, mode: 'insensitive' } },
-          { kode: { contains: search, mode: 'insensitive' } }
-        ];
-      }
-
-      // Query data dengan pagination dan count total
-      const [skemas, total] = await Promise.all([
-        prisma.skema.findMany({
-          where,
-          skip,
-          take,
-          include: {
-            proposals: {
-              select: {
-                id: true,
-                status: true
-              }
-            }
-          },
-          orderBy: { createdAt: 'desc' }
-        }),
-        prisma.skema.count({ where })
-      ]);
-
-      // Hitung statistik proposal per skema
-      const skemasWithStats = skemas.map(skema => ({
-        ...skema,
-        totalProposal: skema.proposals.length,
-        approvedProposal: skema.proposals.filter(p => p.status === 'APPROVED').length,
-        activeProposal: skema.proposals.filter(p => ['SUBMITTED', 'REVIEW'].includes(p.status)).length
-      }));
-
-      const totalPages = Math.ceil(total / take);
-
-      return sendPaginated(res, 'Skema retrieved successfully', skemasWithStats, {
-        page: parseInt(page),
-        limit: take,
-        total,
-        totalPages
-      });
-
-    } catch (error) {
-      console.error('Error getting skema:', error);
-      return sendError(res, 'Failed to retrieve skema', 500);
+// Get all skema with pagination and filtering
+const getAllSkema = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return errorResponse(res, 'Validation error', 400, errors.array());
     }
-  }
 
-  // Get skema by ID
-  async getSkemaById(req, res) {
-    try {
-      const { id } = req.params;
-      
-      // Validasi ID harus numerik
-      if (isNaN(parseInt(id))) {
-        return sendError(res, 'ID skema harus berupa angka', 400);
-      }
+    const { page = 1, limit = 10, tahun_aktif, kategori, status = 'AKTIF' } = req.query;
+    const skip = (page - 1) * limit;
 
-      const skema = await prisma.skema.findUnique({
-        where: { id: parseInt(id) },
+    const where = {
+      status: status
+    };
+
+    if (tahun_aktif) {
+      where.tahun_aktif = tahun_aktif;
+    }
+
+    if (kategori) {
+      where.kategori = kategori;
+    }
+
+    const [skemas, total] = await Promise.all([
+      prisma.skema.findMany({
+        where,
+        skip: parseInt(skip),
+        take: parseInt(limit),
+        orderBy: { createdAt: 'desc' },
         include: {
-          proposals: {
-            include: {
-              ketua: {
-                select: { id: true, nama: true, email: true }
-              }
-            }
+          _count: {
+            select: { proposals: true }
           }
         }
-      });
+      }),
+      prisma.skema.count({ where })
+    ]);
 
-      if (!skema) {
-        return sendError(res, 'Skema tidak ditemukan', 404);
+    const totalPages = Math.ceil(total / limit);
+
+    return successResponse(res, 'Skema retrieved successfully', {
+      skemas,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
       }
-
-      return sendSuccess(res, skema, 'Detail skema berhasil diambil');
-
-    } catch (error) {
-      console.error('Error getting skema by ID:', error);
-      return sendError(res, 'Terjadi kesalahan saat mengambil data skema', 500);
-    }
+    });
+  } catch (error) {
+    console.error('Get all skema error:', error);
+    return errorResponse(res, 'Failed to retrieve skema', 500);
   }
+};
 
-  // Create new skema
-  async createSkema(req, res) {
-    try {
-      const {
+// Get skema by ID
+const getSkemaById = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return errorResponse(res, 'Validation error', 400, errors.array());
+    }
+
+    const { id } = req.params;
+
+    const skema = await prisma.skema.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        proposals: {
+          select: {
+            id: true,
+            judul: true,
+            status: true,
+            ketua: {
+              select: { nama: true, email: true }
+            }
+          }
+        },
+        _count: {
+          select: { proposals: true }
+        }
+      }
+    });
+
+    if (!skema) {
+      return errorResponse(res, 'Skema not found', 404);
+    }
+
+    return successResponse(res, 'Skema retrieved successfully', skema);
+  } catch (error) {
+    console.error('Get skema by ID error:', error);
+    return errorResponse(res, 'Failed to retrieve skema', 500);
+  }
+};
+
+// Get active skema (for public access)
+const getActiveSkema = async (req, res) => {
+  try {
+    const currentDate = new Date();
+    
+    const skemas = await prisma.skema.findMany({
+      where: {
+        status: 'AKTIF',
+        tanggal_buka: { lte: currentDate },
+        tanggal_tutup: { gte: currentDate }
+      },
+      select: {
+        id: true,
+        kode: true,
+        nama: true,
+        kategori: true,
+        luaran_wajib: true, // TAMBAHKAN INI
+        dana_min: true,
+        dana_max: true,
+        batas_anggota: true,
+        tahun_aktif: true,
+        tanggal_buka: true,
+        tanggal_tutup: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return successResponse(res, 'Active skema retrieved successfully', skemas);
+  } catch (error) {
+    console.error('Get active skema error:', error);
+    return errorResponse(res, 'Failed to retrieve active skema', 500);
+  }
+};
+
+// Get skema statistics
+const getSkemaStats = async (req, res) => {
+  try {
+    const [total, active, byCategory, byYear] = await Promise.all([
+      prisma.skema.count(),
+      prisma.skema.count({ where: { status: 'AKTIF' } }),
+      prisma.skema.groupBy({
+        by: ['kategori'],
+        _count: { kategori: true }
+      }),
+      prisma.skema.groupBy({
+        by: ['tahun_aktif'],
+        _count: { tahun_aktif: true },
+        orderBy: { tahun_aktif: 'desc' }
+      })
+    ]);
+
+    return successResponse(res, 'Skema statistics retrieved successfully', {
+      total,
+      active,
+      byCategory,
+      byYear
+    });
+  } catch (error) {
+    console.error('Get skema stats error:', error);
+    return errorResponse(res, 'Failed to retrieve skema statistics', 500);
+  }
+};
+
+// Create new skema (Admin only)
+const createSkema = async (req, res) => {
+  try {
+    const {
+      kode,
+      nama,
+      kategori,
+      luaran_wajib,
+      dana_min,
+      dana_max,
+      batas_anggota = 5,
+      tahun_aktif,
+      tanggal_buka,
+      tanggal_tutup
+    } = req.body;
+
+    // Check if kode already exists
+    const existingSkema = await prisma.skema.findUnique({
+      where: { kode }
+    });
+
+    if (existingSkema) {
+      return errorResponse(res, 'Kode skema already exists', 400);
+    }
+
+    const skema = await prisma.skema.create({
+      data: {
         kode,
         nama,
         kategori,
         luaran_wajib,
-        dana_min,
-        dana_max,
-        batas_anggota = 5,
+        dana_min: dana_min ? parseFloat(dana_min) : null,
+        dana_max: dana_max ? parseFloat(dana_max) : null,
+           batas_anggota: batas_anggota ? parseInt(batas_anggota) : 5,
         tahun_aktif,
-        tanggal_buka,
-        tanggal_tutup,
-        status = 'AKTIF'
-      } = req.body;
-
-      // Validasi field wajib
-      if (!kode || !nama || !kategori || !tahun_aktif) {
-        return sendError(res, 'Kode, nama, kategori, dan tahun aktif wajib diisi', 400);
+        tanggal_buka: tanggal_buka ? new Date(tanggal_buka) : null,
+        tanggal_tutup: tanggal_tutup ? new Date(tanggal_tutup) : null
       }
+    });
 
-      // Normalisasi kategori - hanya PENELITIAN dan PENGABDIAN
-      let kategoriEnum;
-      const kategoriUpper = kategori.toUpperCase();
-      
-      if (kategoriUpper === 'PENELITIAN' || kategoriUpper === 'PENGABDIAN') {
-        kategoriEnum = kategoriUpper;
-      } else {
-        return sendError(res, `Kategori tidak valid. Harus PENELITIAN atau PENGABDIAN`, 400);
-      }
+    return successResponse(res, 'Skema created successfully', skema, 201);
+  } catch (error) {
+    console.error('Create skema error:', error);
+    return errorResponse(res, 'Failed to create skema', 500);
+  }
+};
 
-      // Normalisasi status
-      let statusEnum = 'AKTIF';
-      if (status) {
-        const statusUpper = status.toUpperCase();
-        if (statusUpper === 'AKTIF' || statusUpper === 'NONAKTIF') {
-          statusEnum = statusUpper;
-        }
-      }
+// Update skema (Admin only)
+const updateSkema = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return errorResponse(res, 'Validation error', 400, errors.array());
+    }
 
-      // Cek kode unik
-      const existingSkema = await prisma.skema.findUnique({
+    const { id } = req.params;
+    const {
+      kode,
+      nama,
+      kategori,
+      luaran_wajib,
+      dana_min,
+      dana_max,
+      batas_anggota,
+      tahun_aktif,
+      tanggal_buka,
+      tanggal_tutup,
+      status
+    } = req.body;
+
+    // Check if skema exists
+    const existingSkema = await prisma.skema.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!existingSkema) {
+      return errorResponse(res, 'Skema not found', 404);
+    }
+
+    // Check if kode already exists (exclude current skema)
+    if (kode && kode !== existingSkema.kode) {
+      const duplicateKode = await prisma.skema.findUnique({
         where: { kode }
       });
 
-      if (existingSkema) {
-        return sendError(res, 'Kode skema sudah digunakan', 400);
+      if (duplicateKode) {
+        return errorResponse(res, 'Kode skema already exists', 400);
       }
-
-      // Validasi range dana
-      if (dana_min && dana_max && parseFloat(dana_min) > parseFloat(dana_max)) {
-        return sendError(res, 'Dana minimum tidak boleh lebih besar dari dana maksimum', 400);
-      }
-
-      // Validasi tanggal
-      if (tanggal_buka && tanggal_tutup && new Date(tanggal_buka) > new Date(tanggal_tutup)) {
-        return sendError(res, 'Tanggal buka tidak boleh lebih besar dari tanggal tutup', 400);
-      }
-
-      // Konversi tahun_aktif ke string
-      const tahunAktifString = tahun_aktif.toString();
-
-      const skema = await prisma.skema.create({
-        data: {
-          kode,
-          nama,
-          kategori: kategoriEnum,
-          luaran_wajib: luaran_wajib || null,
-          dana_min: dana_min ? parseFloat(dana_min) : null,
-          dana_max: dana_max ? parseFloat(dana_max) : null,
-          batas_anggota: parseInt(batas_anggota),
-          tahun_aktif: tahunAktifString,
-          tanggal_buka: tanggal_buka ? new Date(tanggal_buka) : null,
-          tanggal_tutup: tanggal_tutup ? new Date(tanggal_tutup) : null,
-          status: statusEnum
-        }
-      });
-
-      return sendSuccess(res, skema, 'Skema berhasil dibuat', 201);
-
-    } catch (error) {
-      console.error('Error creating skema:', error);
-      
-      // Handle error spesifik Prisma
-      if (error.code === 'P2002') {
-        return sendError(res, 'Kode skema sudah digunakan', 400);
-      }
-      
-      return sendError(res, `Gagal membuat skema: ${error.message}`, 500);
     }
-  }
 
-  // Update skema
-  async updateSkema(req, res) {
-    try {
-      const { id } = req.params;
-      
-      // Validasi ID harus numerik
-      if (isNaN(parseInt(id))) {
-        return sendError(res, 'ID skema harus berupa angka', 400);
-      }
-
-      const updateData = req.body;
-
-      // Cek skema exist
-      const existingSkema = await prisma.skema.findUnique({
-        where: { id: parseInt(id) }
-      });
-
-      if (!existingSkema) {
-        return sendError(res, 'Skema tidak ditemukan', 404);
-      }
-
-      // Normalisasi kategori - hanya PENELITIAN dan PENGABDIAN
-      if (updateData.kategori) {
-        const kategoriUpper = updateData.kategori.toUpperCase();
-        if (kategoriUpper === 'PENELITIAN' || kategoriUpper === 'PENGABDIAN') {
-          updateData.kategori = kategoriUpper;
-        } else {
-          return sendError(res, 'Kategori tidak valid. Harus PENELITIAN atau PENGABDIAN', 400);
-        }
-      }
-
-      // Normalisasi status
-      if (updateData.status) {
-        const statusUpper = updateData.status.toUpperCase();
-        if (statusUpper === 'AKTIF' || statusUpper === 'NONAKTIF') {
-          updateData.status = statusUpper;
-        } else {
-          return sendError(res, 'Status tidak valid', 400);
-        }
-      }
-
-      // Cek kode unik jika diupdate
-      if (updateData.kode && updateData.kode !== existingSkema.kode) {
-        const skemaWithSameKode = await prisma.skema.findUnique({
-          where: { kode: updateData.kode }
-        });
-
-        if (skemaWithSameKode) {
-          return sendError(res, 'Kode skema sudah digunakan', 400);
-        }
-      }
-
-      // Validasi range dana
-      const dana_min = updateData.dana_min ?? existingSkema.dana_min;
-      const dana_max = updateData.dana_max ?? existingSkema.dana_max;
-      
-      if (dana_min && dana_max && parseFloat(dana_min) > parseFloat(dana_max)) {
-        return sendError(res, 'Dana minimum tidak boleh lebih besar dari dana maksimum', 400);
-      }
-
-      // Validasi tanggal
-      const tanggal_buka = updateData.tanggal_buka ?? existingSkema.tanggal_buka;
-      const tanggal_tutup = updateData.tanggal_tutup ?? existingSkema.tanggal_tutup;
-      
-      if (tanggal_buka && tanggal_tutup && new Date(tanggal_buka) > new Date(tanggal_tutup)) {
-        return sendError(res, 'Tanggal buka tidak boleh lebih besar dari tanggal tutup', 400);
-      }
-
-      // Parse tipe data
-      if (updateData.dana_min) updateData.dana_min = parseFloat(updateData.dana_min);
-      if (updateData.dana_max) updateData.dana_max = parseFloat(updateData.dana_max);
-      if (updateData.batas_anggota != null) updateData.batas_anggota = parseInt(updateData.batas_anggota);
-      if (updateData.tanggal_buka) updateData.tanggal_buka = new Date(updateData.tanggal_buka);
-      if (updateData.tanggal_tutup) updateData.tanggal_tutup = new Date(updateData.tanggal_tutup);
-
-      const skema = await prisma.skema.update({
-        where: { id: parseInt(id) },
-        data: updateData
-      });
-
-      return sendSuccess(res, skema, 'Skema berhasil diperbarui');
-
-    } catch (error) {
-      console.error('Error updating skema:', error);
-      return sendError(res, 'Gagal memperbarui skema', 500);
+    const updateData = {};
+    if (kode) updateData.kode = kode;
+    if (nama) updateData.nama = nama;
+    if (kategori) updateData.kategori = kategori;
+    if (luaran_wajib !== undefined) updateData.luaran_wajib = luaran_wajib;
+    if (dana_min !== undefined) updateData.dana_min = dana_min ? parseFloat(dana_min) : null;
+    if (dana_max !== undefined) updateData.dana_max = dana_max ? parseFloat(dana_max) : null;
+    if (batas_anggota !== undefined) {
+      updateData.batas_anggota = batas_anggota ? parseInt(batas_anggota) : 5;
     }
+    if (tahun_aktif) updateData.tahun_aktif = tahun_aktif;
+    if (tanggal_buka !== undefined) updateData.tanggal_buka = tanggal_buka ? new Date(tanggal_buka) : null;
+    if (tanggal_tutup !== undefined) updateData.tanggal_tutup = tanggal_tutup ? new Date(tanggal_tutup) : null;
+    if (status) updateData.status = status;
+
+    const skema = await prisma.skema.update({
+      where: { id: parseInt(id) },
+      data: updateData
+    });
+
+    return successResponse(res, 'Skema updated successfully', skema);
+  } catch (error) {
+    console.error('Update skema error:', error);
+    return errorResponse(res, 'Failed to update skema', 500);
   }
+};
 
-  // Delete skema
-  async deleteSkema(req, res) {
-    try {
-      const { id } = req.params;
-      
-      // Validasi ID
-      if (isNaN(parseInt(id))) {
-        return sendError(res, 'ID skema harus berupa angka', 400);
-      }
-
-      // Cek skema exist
-      const skema = await prisma.skema.findUnique({
-        where: { id: parseInt(id) },
-        include: {
-          proposals: true
-        }
-      });
-
-      if (!skema) {
-        return sendError(res, 'Skema tidak ditemukan', 404);
-      }
-
-      // Cek proposal terkait
-      if (skema.proposals.length > 0) {
-        return sendError(res, 'Tidak dapat menghapus skema yang memiliki proposal', 400);
-      }
-
-      await prisma.skema.delete({
-        where: { id: parseInt(id) }
-      });
-
-      return sendSuccess(res, 'Skema berhasil dihapus', null);
-
-    } catch (error) {
-      console.error('Error deleting skema:', error);
-      return sendError(res, 'Gagal menghapus skema', 500);
+// Delete skema (Admin only)
+const deleteSkema = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return errorResponse(res, 'Validation error', 400, errors.array());
     }
-  }
 
-  // Get skema statistics
-  async getSkemaStats(req, res) {
-    try {
-      const stats = await prisma.skema.groupBy({
-        by: ['kategori', 'status'],
+    const { id } = req.params;
+
+    // Check if skema exists
+    const existingSkema = await prisma.skema.findUnique({
+      where: { id: parseInt(id) },
+      include: {
         _count: {
-          id: true
+          select: { proposals: true }
         }
-      });
+      }
+    });
 
-      const totalSkema = await prisma.skema.count();
-      const activeSkema = await prisma.skema.count({
-        where: { status: 'AKTIF' }
-      });
-
-      const formattedStats = {
-        total: totalSkema,
-        active: activeSkema,
-        inactive: totalSkema - activeSkema,
-        byKategori: stats.reduce((acc, item) => {
-          if (!acc[item.kategori]) acc[item.kategori] = 0;
-          acc[item.kategori] += item._count.id;
-          return acc;
-        }, {})
-      };
-
-      return sendSuccess(res, formattedStats, 'Skema statistics retrieved successfully');
-
-    } catch (error) {
-      console.error('Error getting skema stats:', error);
-      return sendError(res, 'Failed to retrieve skema statistics', 500);
+    if (!existingSkema) {
+      return errorResponse(res, 'Skema not found', 404);
     }
-  }
 
-  // Get active skema
-  async getActiveSkema(req, res) {
-    try {
-      const skemas = await prisma.skema.findMany({
-        where: { 
-          status: 'AKTIF',
-          OR: [
-            { tanggal_tutup: null },
-            { tanggal_tutup: { gte: new Date() } }
-          ]
-        },
-        orderBy: { nama: 'asc' }
-      });
-
-      return sendSuccess(res, skemas, 'Active skema retrieved successfully');
-
-    } catch (error) {
-      console.error('Error getting active skema:', error);
-      return sendError(res, 'Failed to retrieve active skema', 500);
+    // Check if skema has proposals
+    if (existingSkema._count.proposals > 0) {
+      return errorResponse(res, 'Cannot delete skema that has proposals', 400);
     }
-  }
-}
 
-module.exports = new SkemaController();
+    await prisma.skema.delete({
+      where: { id: parseInt(id) }
+    });
+
+    return successResponse(res, 'Skema deleted successfully');
+  } catch (error) {
+    console.error('Delete skema error:', error);
+    return errorResponse(res, 'Failed to delete skema', 500);
+  }
+};
+
+module.exports = {
+  getAllSkema,
+  getSkemaById,
+  getActiveSkema,
+  getSkemaStats,
+  createSkema,
+  updateSkema,
+  deleteSkema
+};

@@ -13,14 +13,14 @@ const SkemaForm = ({ onSubmit, initialData = null, isEditing = false }) => {
     luaran_wajib: '',
     dana_min: '',
     dana_max: '',
-    batas_anggota: 5,
+    batas_anggota: '',
     tahun_aktif: new Date().getFullYear().toString(),
     tanggal_buka: '',
     tanggal_tutup: '',
     status: 'AKTIF'
   });
 
-  // Inisialisasi data jika ada initialData
+   // Inisialisasi data jika ada initialData
   useEffect(() => {
     if (initialData) {
       setFormData({
@@ -30,7 +30,7 @@ const SkemaForm = ({ onSubmit, initialData = null, isEditing = false }) => {
         luaran_wajib: initialData.luaran_wajib || '',
         dana_min: initialData.dana_min || '',
         dana_max: initialData.dana_max || '',
-        batas_anggota: initialData.batas_anggota || 5,
+        batas_anggota: initialData.batas_anggota ? initialData.batas_anggota.toString() : '',
         tahun_aktif: initialData.tahun_aktif || new Date().getFullYear().toString(),
         tanggal_buka: initialData.tanggal_buka 
           ? new Date(initialData.tanggal_buka).toISOString().split('T')[0] 
@@ -125,15 +125,18 @@ const SkemaForm = ({ onSubmit, initialData = null, isEditing = false }) => {
     }
 
     // Validasi batas anggota
-    if (formData.batas_anggota < 1) {
-      newErrors.batas_anggota = 'Batas anggota minimal 1';
+    if (formData.batas_anggota && formData.batas_anggota.trim() !== '') {
+      const value = parseInt(formData.batas_anggota);
+      if (isNaN(value) || value < 1) {
+        newErrors.batas_anggota = 'Batas anggota minimal 1';
+      }
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle submit
+ // Handle submit
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -147,7 +150,7 @@ const SkemaForm = ({ onSubmit, initialData = null, isEditing = false }) => {
       // Prepare data untuk dikirim
       const submitData = {
         ...formData,
-        batas_anggota: parseInt(formData.batas_anggota),
+        batas_anggota: formData.batas_anggota ? parseInt(formData.batas_anggota) : 5,
         dana_min: formData.dana_min ? parseFloat(formData.dana_min) : null,
         dana_max: formData.dana_max ? parseFloat(formData.dana_max) : null,
         tanggal_buka: formData.tanggal_buka || null,
@@ -411,39 +414,43 @@ const SkemaForm = ({ onSubmit, initialData = null, isEditing = false }) => {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Batas Anggota */}
-              <div>
-                <label htmlFor="batas_anggota" className="block text-sm font-medium text-gray-700 mb-2">
-                  Batas Anggota
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    id="batas_anggota"
-                    name="batas_anggota"
-                    value={formData.batas_anggota}
-                    onChange={handleChange}
-                    min="1"
-                    className={`w-full px-4 py-2.5 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${
-                      errors.batas_anggota ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
-                  {errors.batas_anggota && (
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                      <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                  )}
-                </div>
-                {errors.batas_anggota && <p className="mt-1.5 text-sm text-red-600 flex items-center">
-                  <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                  {errors.batas_anggota}
-                </p>}
-                <p className="mt-1 text-xs text-gray-500">Jumlah maksimal anggota dalam satu proposal</p>
-              </div>
+           {/* Batas Anggota */}
+    <div>
+      <label htmlFor="batas_anggota" className="block text-sm font-medium text-gray-700 mb-2">
+        Batas Anggota
+      </label>
+      <div className="relative">
+        <input
+          type="number"
+          id="batas_anggota"
+          name="batas_anggota"
+          value={formData.batas_anggota}
+          onChange={handleChange}
+          min="1"
+          className={`w-full px-4 py-2.5 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${
+            errors.batas_anggota ? 'border-red-500' : 'border-gray-300'
+          }`}
+          placeholder="Kosongkan untuk default (5)"
+        />
+        {errors.batas_anggota && (
+          <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+            <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+          </div>
+        )}
+      </div>
+      {errors.batas_anggota ? (
+        <p className="mt-1.5 text-sm text-red-600 flex items-center">
+          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+          {errors.batas_anggota}
+        </p>
+      ) : (
+        <p className="mt-1 text-xs text-gray-500">Tentukan batas anggota</p>
+      )}
+    </div>
 
               {/* Tahun Aktif */}
               <div>

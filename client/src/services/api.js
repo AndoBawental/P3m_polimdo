@@ -1,4 +1,3 @@
-// src/services/api.js
 import axios from 'axios';
 
 // Create axios instance with base configuration
@@ -53,6 +52,9 @@ api.interceptors.response.use(
         case 404:
           console.error('Resource not found');
           break;
+        case 429: // PENANGANAN KHUSUS UNTUK RATE LIMIT
+          console.error('Rate limit exceeded');
+          return Promise.reject(new Error('Terlalu banyak permintaan. Silakan tunggu beberapa saat.'));
         case 500:
           console.error('Server error');
           break;

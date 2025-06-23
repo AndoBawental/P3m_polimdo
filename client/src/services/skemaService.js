@@ -1,19 +1,18 @@
+//client/src/services/skemaService.js
 import api from './api';
 
 class SkemaService {
   async getAllSkema(filters = {}) {
     try {
-      // Convert frontend filters to backend compatible format
       const params = {
         page: filters.page,
         limit: filters.limit,
         search: filters.search,
         kategori: filters.kategori === 'Semua Kategori' ? null : filters.kategori,
         status: filters.status === 'Semua Status' ? null : filters.status,
-        tahun_aktif: filters.tahun_aktif || null // Tambahkan filter tahun_aktif
+        tahun_aktif: filters.tahun_aktif || null
       };
 
-      // Remove undefined/null values
       Object.keys(params).forEach(key => {
         if (params[key] === null || params[key] === undefined || params[key] === '') {
           delete params[key];
@@ -50,21 +49,21 @@ class SkemaService {
   }
 
   async getActiveSkema() {
-    try {
-      const response = await api.get('/skema/active');
-      return {
-        success: true,
-        data: response.data.data || []
-      };
-    } catch (error) {
-      console.error('Error fetching active skema:', error);
-      return {
-        success: false,
-        message: error.response?.data?.message || 'Gagal memuat skema aktif',
-        data: []
-      };
-    }
+  try {
+    const response = await api.get('/skema/active');
+    return {
+      success: true,
+      data: response.data.data || []
+    };
+  } catch (error) {
+    console.error('Error fetching active skema:', error);
+    return {
+      success: false,
+      message: error.response?.data?.message || 'Gagal memuat skema aktif',
+      data: []
+    };
   }
+}
 
   async getSkemaStats() {
     try {
@@ -85,6 +84,14 @@ class SkemaService {
 
   async createSkema(skemaData) {
     try {
+      // Validasi tahun_aktif
+      if (!/^\d{4}$/.test(skemaData.tahun_aktif)) {
+        return {
+          success: false,
+          message: 'Format tahun aktif tidak valid. Harus 4 digit (contoh: 2023)'
+        };
+      }
+
       const payload = {
         kode: skemaData.kode,
         nama: skemaData.nama,
@@ -92,14 +99,13 @@ class SkemaService {
         luaran_wajib: skemaData.luaran_wajib || null,
         dana_min: skemaData.dana_min ? parseFloat(skemaData.dana_min) : null,
         dana_max: skemaData.dana_max ? parseFloat(skemaData.dana_max) : null,
-        batas_anggota: parseInt(skemaData.batas_anggota) || 5,
+        batas_anggota: skemaData.batas_anggota ? parseInt(skemaData.batas_anggota) : 5,
         tahun_aktif: skemaData.tahun_aktif,
         tanggal_buka: skemaData.tanggal_buka || null,
         tanggal_tutup: skemaData.tanggal_tutup || null,
         status: skemaData.status || 'AKTIF'
       };
 
-      // Remove empty values except for allowed null fields
       Object.keys(payload).forEach(key => {
         if (payload[key] === null || payload[key] === undefined || payload[key] === '') {
           if (!['luaran_wajib', 'dana_min', 'dana_max', 'tanggal_buka', 'tanggal_tutup'].includes(key)) {
@@ -126,6 +132,14 @@ class SkemaService {
 
   async updateSkema(id, skemaData) {
     try {
+      // Validasi tahun_aktif
+      if (skemaData.tahun_aktif && !/^\d{4}$/.test(skemaData.tahun_aktif)) {
+        return {
+          success: false,
+          message: 'Format tahun aktif tidak valid. Harus 4 digit (contoh: 2023)'
+        };
+      }
+
       const payload = {
         kode: skemaData.kode,
         nama: skemaData.nama,
@@ -133,14 +147,13 @@ class SkemaService {
         luaran_wajib: skemaData.luaran_wajib || null,
         dana_min: skemaData.dana_min ? parseFloat(skemaData.dana_min) : null,
         dana_max: skemaData.dana_max ? parseFloat(skemaData.dana_max) : null,
-        batas_anggota: parseInt(skemaData.batas_anggota) || 5,
+         batas_anggota: skemaData.batas_anggota ? parseInt(skemaData.batas_anggota) : 5,
         tahun_aktif: skemaData.tahun_aktif,
         tanggal_buka: skemaData.tanggal_buka || null,
         tanggal_tutup: skemaData.tanggal_tutup || null,
         status: skemaData.status || 'AKTIF'
       };
 
-      // Remove empty values except for allowed null fields
       Object.keys(payload).forEach(key => {
         if (payload[key] === null || payload[key] === undefined || payload[key] === '') {
           if (!['luaran_wajib', 'dana_min', 'dana_max', 'tanggal_buka', 'tanggal_tutup'].includes(key)) {

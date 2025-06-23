@@ -42,7 +42,13 @@ const dashboardController = {
 
       let whereClause = {};
       if (role !== 'ADMIN') {
-        whereClause = { ketuaId: userId };
+        // Include proposals where user is either lead or member
+        whereClause = {
+          OR: [
+            { ketuaId: userId },
+            { members: { some: { userId: userId } } }
+          ]
+        };
       }
 
       const proposals = await prisma.proposal.findMany({
@@ -55,6 +61,13 @@ const dashboardController = {
           },
           skema: {
             select: { nama: true, kategori: true }
+          },
+          members: {
+            select: {
+              user: {
+                select: { id: true, nama: true }
+              }
+            }
           }
         }
       });
@@ -96,45 +109,45 @@ const dashboardController = {
   },
 
   // Get recent reviews
-async getRecentReviews(req, res) {
-  try {
-    const limit = parseInt(req.query.limit) || 5;
-    const skip = parseInt(req.query.skip) || 0; // ✅ tambahkan ini
+  async getRecentReviews(req, res) {
+    try {
+      const limit = parseInt(req.query.limit) || 5;
+      const skip = parseInt(req.query.skip) || 0;
 
-    const { role, id: userId } = req.user;
+      const { role, id: userId } = req.user;
 
-    let whereClause = {}; // ✅ sudah benar
-    if (role === 'REVIEWER') {
-      whereClause = { reviewerId: userId };
-    }
+      let whereClause = {};
+      if (role === 'REVIEWER') {
+        whereClause = { reviewerId: userId };
+      }
 
-    const reviews = await prisma.review.findMany({
-      skip: skip, // ✅ sekarang variabelnya valid
-      take: limit,
-      where: whereClause, // ✅ gunakan 'whereClause', bukan 'where'
-      include: {
-        proposal: {
-          select: {
-            id: true,
-            judul: true,
-            status: true,
-            ketua: { select: { nama: true, email: true } },
-            skema: { select: { nama: true } }
+      const reviews = await prisma.review.findMany({
+        skip: skip,
+        take: limit,
+        where: whereClause,
+        include: {
+          proposal: {
+            select: {
+              id: true,
+              judul: true,
+              status: true,
+              ketua: { select: { nama: true, email: true } },
+              skema: { select: { nama: true } }
+            }
+          },
+          reviewer: {
+            select: { nama: true, email: true }
           }
         },
-        reviewer: {
-          select: { nama: true, email: true }
-        }
-      },
-      orderBy: { tanggal_review: 'desc' }
-    });
+        orderBy: { tanggal_review: 'desc' }
+      });
 
-    return sendSuccess(res, 'Recent reviews berhasil dimuat', reviews);
-  } catch (error) {
-    console.error('Recent Reviews Error:', error);
-    return sendError(res, 'Gagal memuat recent reviews', 500);
-  }
-},
+      return sendSuccess(res, 'Recent reviews berhasil dimuat', reviews);
+    } catch (error) {
+      console.error('Recent Reviews Error:', error);
+      return sendError(res, 'Gagal memuat recent reviews', 500);
+    }
+  },
 
   // Get announcements
   async getAnnouncements(req, res) {
@@ -249,66 +262,185 @@ async function getAdminStats() {
 
 async function getDosenStats(userId) {
   try {
-    const [
-      myProposals,
-      pendingProposals,
-      approvedProposals,
-      rejectedProposals
-    ] = await Promise.all([
-      prisma.proposal.count({ where: { ketuaId: userId } }),
-      prisma.proposal.count({ where: { ketuaId: userId, status: 'SUBMITTED' } }),
-      prisma.proposal.count({ where: { ketuaId: userId, status: 'APPROVED' } }),
-      prisma.proposal.count({ where: { ketuaId: userId, status: 'REJECTED' } })
+    // Hitung proposal sebagai ketua
+    const asKetua = await prisma.proposal.count({ 
+      where: { ketuaId: userId } 
+    });
+
+    // Hitung proposal sebagai anggota (bukan ketua)
+    const asAnggota = await prisma.proposal.count({
+      where: {
+        members: {
+          some: {
+            userId: userId,
+            peran: 'ANGGOTA'
+          }
+        },
+        NOT: { ketuaId: userId } // Exclude proposals where user is lead
+      }
+    });
+
+    // Total semua proposal (ketua + anggota)
+    const totalProposals = asKetua + asAnggota;
+
+    // Statistik berdasarkan status untuk semua proposal yang melibatkan dosen
+    const [pendingProposals, reviewProposals, approvedProposals, rejectedProposals] = await Promise.all([
+      // Proposal dengan status 'SUBMITTED'
+      prisma.proposal.count({
+        where: {
+          OR: [
+            { ketuaId: userId },
+            { members: { some: { userId: userId } } }
+          ],
+          status: 'SUBMITTED'
+        }
+      }),
+      // Proposal dengan status 'REVIEW'
+      prisma.proposal.count({
+        where: {
+          OR: [
+            { ketuaId: userId },
+            { members: { some: { userId: userId } } }
+          ],
+          status: 'REVIEW'
+        }
+      }),
+      // Proposal dengan status 'APPROVED'
+      prisma.proposal.count({
+        where: {
+          OR: [
+            { ketuaId: userId },
+            { members: { some: { userId: userId } } }
+          ],
+          status: 'APPROVED'
+        }
+      }),
+      // Proposal dengan status 'REJECTED'
+      prisma.proposal.count({
+        where: {
+          OR: [
+            { ketuaId: userId },
+            { members: { some: { userId: userId } } }
+          ],
+          status: 'REJECTED'
+        }
+      })
     ]);
 
+    // Total skema yang tersedia
+    const totalSkema = await prisma.skema.count({ 
+      where: { 
+        status: 'AKTIF',
+        OR: [
+          { tanggal_tutup: null },
+          { tanggal_tutup: { gte: new Date() } }
+        ]
+      }
+    });
+
+    // Proposal yang perlu direview oleh dosen ini
+    const reviewRequired = await prisma.proposal.count({
+      where: {
+        reviewerId: userId,
+        status: 'REVIEW'
+      }
+    });
+
     return {
-      myProposals,
+      totalProposals,
+      asKetua,
+      asAnggota,
       pendingProposals,
+      reviewProposals,
       approvedProposals,
-      rejectedProposals
+      rejectedProposals,
+      totalSkema,
+      reviewRequired
     };
   } catch (error) {
     console.error('Dosen Stats Error:', error);
-    return getDefaultStats();
+    return {
+      totalProposals: 0,
+      asKetua: 0,
+      asAnggota: 0,
+      pendingProposals: 0,
+      reviewProposals: 0,
+      approvedProposals: 0,
+      rejectedProposals: 0,
+      totalSkema: 0,
+      reviewRequired: 0
+    };
   }
 }
 
 async function getMahasiswaStats(userId) {
   try {
-    const [
-      myProposals,
-      pendingProposals,
-      approvedProposals,
-      totalSkema  // TAMBAHKAN QUERY UNTUK SKEMA AKTIF
-    ] = await Promise.all([
-      prisma.proposal.count({ where: { ketuaId: userId } }),
-      prisma.proposal.count({ where: { ketuaId: userId, status: 'SUBMITTED' } }),
-      prisma.proposal.count({ where: { ketuaId: userId, status: 'APPROVED' } }),
-      // QUERY UNTUK SKEMA AKTIF
-      prisma.skema.count({ 
-        where: { 
-          status: 'AKTIF',
-          OR: [
-            { tanggal_tutup: null },
-            { tanggal_tutup: { gte: new Date() } }
-          ]
+    // Hitung proposal sebagai ketua
+    const asKetua = await prisma.proposal.count({ 
+      where: { ketuaId: userId } 
+    });
+
+    // Hitung proposal sebagai anggota (bukan ketua)
+    const asAnggota = await prisma.proposal.count({
+      where: {
+        members: {
+          some: {
+            userId: userId,
+            peran: 'ANGGOTA'
+          }
         }
+      }
+    });
+
+    // Statistik status untuk semua proposal yang melibatkan mahasiswa
+    const [pendingProposals, approvedProposals] = await Promise.all([
+      prisma.proposal.count({ 
+        where: { 
+          OR: [
+            { ketuaId: userId },
+            { members: { some: { userId: userId } } }
+          ],
+          status: 'SUBMITTED' 
+        } 
+      }),
+      prisma.proposal.count({ 
+        where: { 
+          OR: [
+            { ketuaId: userId },
+            { members: { some: { userId: userId } } }
+          ],
+          status: 'APPROVED' 
+        } 
       })
     ]);
 
+    const totalSkema = await prisma.skema.count({ 
+      where: { 
+        status: 'AKTIF',
+        OR: [
+          { tanggal_tutup: null },
+          { tanggal_tutup: { gte: new Date() } }
+        ]
+      }
+    });
+
     return {
-      myProposals,
+      totalProposals: asKetua + asAnggota,
+      asKetua,
+      asAnggota,
       pendingProposals,
       approvedProposals,
-      totalSkema  // RETURN DATA SKEMA
+      totalSkema
     };
   } catch (error) {
     console.error('Mahasiswa Stats Error:', error);
     return {
-      myProposals: 0,
+      totalProposals: 0,
+      asKetua: 0,
+      asAnggota: 0,
       pendingProposals: 0,
       approvedProposals: 0,
-      totalSkema: 0  // FALLBACK VALUE
+      totalSkema: 0
     };
   }
 }

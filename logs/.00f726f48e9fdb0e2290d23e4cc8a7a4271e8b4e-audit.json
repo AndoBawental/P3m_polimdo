@@ -1,0 +1,25 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 30
+    },
+    "auditLog": "D:\\TUGAS-TUGAS MATA KULIAH SEMESTER 6\\PRAK.TEKNOLOGI WEB\\Web p3m Fix\\WebP3mPolimdo\\logs\\.00f726f48e9fdb0e2290d23e4cc8a7a4271e8b4e-audit.json",
+    "files": [
+        {
+            "date": 1750200440713,
+            "name": "D:\\TUGAS-TUGAS MATA KULIAH SEMESTER 6\\PRAK.TEKNOLOGI WEB\\Web p3m Fix\\WebP3mPolimdo\\logs\\application-2025-06-18.log",
+            "hash": "c9805bfe655203f15041622772bf30afa8ed93cbc5e93672b6a80bfbce4ad715"
+        },
+        {
+            "date": 1750509180706,
+            "name": "D:\\TUGAS-TUGAS MATA KULIAH SEMESTER 6\\PRAK.TEKNOLOGI WEB\\Web p3m Fix\\WebP3mPolimdo\\logs\\application-2025-06-21.log",
+            "hash": "45d0f0b5fe3fa7787476ddacc6f98ae12673665799564d93f9efca187be13026"
+        },
+        {
+            "date": 1750524233095,
+            "name": "D:\\TUGAS-TUGAS MATA KULIAH SEMESTER 6\\PRAK.TEKNOLOGI WEB\\Web p3m Fix\\WebP3mPolimdo\\logs\\application-2025-06-22.log",
+            "hash": "145734f652a19feb6cf755e4ea5a1c560c5be43d1fbdb6f7f5795962450b2ec5"
+        }
+    ],
+    "hashType": "sha256"
+}
