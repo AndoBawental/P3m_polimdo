@@ -325,7 +325,6 @@ node prisma/seed-p3m.js
 npm run dev
 
 isi .env pada Server:
-
 # ===============server/.env =========
 # Environment Configuration
 # ========================
@@ -399,6 +398,9 @@ EMAIL_FROM_NAME=P3M POLIMDO
 RATE_LIMIT_WINDOW_MS=900000
 RATE_LIMIT_MAX_REQUESTS=100
 
+# Client-side caching
+CACHE_TTL=300000 # 5 minutes
+
 # ========================
 # Session Configuration
 # ========================
@@ -450,6 +452,7 @@ BACKUP_SCHEDULE=0 2 * * *
 # REDIS_PORT=6379
 # REDIS_PASSWORD=
 # CACHE_TTL=3600
+
 
 📁 Struktur Folder (Ringkasan)
 client/src
