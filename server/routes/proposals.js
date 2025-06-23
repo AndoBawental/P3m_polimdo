@@ -40,4 +40,18 @@ router.patch(
 // DELETE /proposals/:id - Delete proposal
 router.delete('/:id', proposalController.delete);
 
+// ✅ ENDPOINT BARU UNTUK PERSETUJUAN ANGGOTA
+// Persetujuan anggota (hanya anggota yang bersangkutan yang boleh akses)
+router.put(
+  '/:proposalId/members/:memberId/approve',
+  checkRole('DOSEN', 'MAHASISWA'),
+  proposalController.approveMember
+);
+
+router.put(
+  '/:proposalId/members/:memberId/reject',
+  checkRole('DOSEN', 'MAHASISWA'),
+  proposalController.rejectMember
+);
+
 module.exports = router;
